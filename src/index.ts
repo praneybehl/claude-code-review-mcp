@@ -10,7 +10,7 @@ import * as logger from './utils/logger.js';
 import { createStreamResponse } from './utils/transport-helpers.js';
 
 // Server version and name
-const SERVER_VERSION = "0.5.3";
+const SERVER_VERSION = "0.5.4";
 const SERVER_NAME = "claude-code-review-mcp";
 
 /**
@@ -177,13 +177,22 @@ async function main() {
       });
     });
 
-    // Start the server
+    // Start the server on any available port if PORT is 0
     serve({
       fetch: app.fetch,
       port: PORT,
       hostname: HOST
     }, (info) => {
-      logger.info(`Server is running on http://${HOST}:${info.port}`);
+      // Store the actual port that was assigned
+      const actualPort = info.port;
+      
+      // Log all available endpoints
+      logger.info(`Server is running on http://${HOST}:${actualPort}`);
+      logger.info(`Health check: http://${HOST}:${actualPort}/`);
+      logger.info(`MCP endpoint: http://${HOST}:${actualPort}/mcp`);
+      
+      // Write port info to stdout so calling processes can capture it
+      console.log(`CLAUDE_CODE_REVIEW_PORT=${actualPort}`);
     });
 
   } catch (error) {

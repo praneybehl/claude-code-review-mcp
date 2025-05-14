@@ -73,5 +73,5 @@ export function getModelProvider(model: string): "openai" | "google" {
 }
 
 // Server configuration
-export const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+export const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 0; // Use 0 to auto-assign an available port
 export const HOST = process.env.HOST || "127.0.0.1";
