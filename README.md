@@ -92,24 +92,25 @@ I'll review your code using alternative LLM models. Model to use: $ARGUMENTS
 
 ## Example Usage
 
-### Basic Code Review
+### Starting the MCP Server
 
 ```bash
-# Pipe code to the server for review
-cat myfile.js | OPENAI_API_KEY=<key> npx -y claude-code-review-mcp review --model o4-mini
+# Start with OpenAI API key
+OPENAI_API_KEY=<key> npx -y claude-code-review-mcp
+
+# Start with Google Gemini API key
+GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
+
+# Use both API keys for more model options
+OPENAI_API_KEY=<key> GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
+
+# Use custom port and host
+OPENAI_API_KEY=<key> PORT=8080 HOST=0.0.0.0 npx -y claude-code-review-mcp
 ```
 
-### Using Google's Gemini Model
+### Using with MCP Clients
 
-```bash
-GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp review --model gemini-2.5-pro-preview-05-06
-```
-
-### Including Project Context
-
-```bash
-OPENAI_API_KEY=<key> npx -y claude-code-review-mcp review --model o4-mini --context-dir ./src
-```
+Once the server is running, you can connect to it from any MCP client like Claude Code, Claude Desktop, Cursor, or Windsurf using the server's URL (default: http://127.0.0.1:3000).
 
 ## Input Schema
 

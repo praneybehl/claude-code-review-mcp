@@ -29,6 +29,9 @@ importers:
       hono:
         specifier: ^4.7.9
         version: 4.7.9
+      zod:
+        specifier: ^3.22.4
+        version: 3.24.4
     devDependencies:
       '@types/node':
         specifier: ^20.11.17
