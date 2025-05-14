@@ -9,6 +9,70 @@
 import * as logger from './logger.js';
 
 /**
+ * Direct fix for the notorious "position 5" error
+ * Inserts a comma at position 5 if needed
+ * 
+ * @param json JSON string that might have position 5 error
+ * @returns Fixed JSON string if applicable
+ */
+export function fixPosition5Error(json: string): string {
+  if (!json || json.length < 6) return json;
+  
+  // Check if this is a typical position 5 error
+  try {
+    JSON.parse(json);
+    return json; // Already valid
+  } catch (error) {
+    // Look specifically for position 5 error
+    if (error instanceof SyntaxError && 
+        error.message.includes('position 5')) {
+      
+      logger.debug('Detected position 5 error, applying targeted fix');
+      
+      // Common pattern for position 5 error is often a missing comma in an array
+      // Check if character at position 5 might need a comma before it
+      const charAtPos4 = json.charAt(4);
+      const charAtPos5 = json.charAt(5);
+      
+      // If position 4 is a quote or value end and position 5 is a quote or value start,
+      // we likely need a comma between them
+      if ((charAtPos4 === '"' || charAtPos4 === '\'') && 
+          (charAtPos5 === '"' || charAtPos5 === '\'')) {
+        const fixed = json.slice(0, 5) + ',' + json.slice(5);
+        try {
+          JSON.parse(fixed); // See if our fix works
+          logger.info('Successfully fixed position 5 error with comma insertion');
+          return fixed;
+        } catch (fixError) {
+          logger.debug('Simple position 5 fix didn\'t work, will try advanced repairs');
+        }
+      }
+      
+      // If we have '[' at position 4 and a space at position 5, remove the space
+      if (charAtPos4 === '[' && /\s/.test(charAtPos5)) {
+        let i = 5;
+        // Skip all spaces
+        while (i < json.length && /\s/.test(json.charAt(i))) {
+          i++;
+        }
+        if (i < json.length) {
+          const fixed = json.slice(0, 5) + json.slice(i);
+          try {
+            JSON.parse(fixed);
+            logger.info('Successfully fixed position 5 error by removing whitespace');
+            return fixed;
+          } catch (fixError) {
+            logger.debug('Whitespace removal at position 5 didn\'t work, will try advanced repairs');
+          }
+        }
+      }
+    }
+  }
+  
+  return json; // Return original if no specific fix was applied
+}
+
+/**
  * Sanitize JSON to fix common issues including the notorious "position 5" error
  * 
  * @param json JSON string that might contain issues
@@ -22,7 +86,20 @@ export function sanitizeJson(json: string): string {
     JSON.parse(json);
     return json;
   } catch (error) {
-    // If it's the position 5 error or another syntax error, attempt to fix
+    // First try direct position 5 fix as it's the most common issue
+    if (error instanceof SyntaxError && error.message.includes('position 5')) {
+      const position5Fixed = fixPosition5Error(json);
+      if (position5Fixed !== json) {
+        try {
+          JSON.parse(position5Fixed);
+          return position5Fixed;
+        } catch (e) {
+          // Continue with other fixes
+        }
+      }
+    }
+    
+    // If it's a syntax error, attempt to fix
     if (error instanceof SyntaxError) {
       logger.debug(`JSON syntax error detected: ${error.message}, attempting to fix`);
       const fixes: string[] = [];
@@ -97,6 +174,19 @@ export function sanitizeJson(json: string): string {
         modifiedJson = modifiedJson.replace(/,\s*,/g, ',');
         fixes.push('duplicate-commas');
       }
+      
+      // Fix 10: Fix unquoted property names
+      const propertyRegex = /(\{|,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g;
+      if (propertyRegex.test(modifiedJson)) {
+        modifiedJson = modifiedJson.replace(propertyRegex, '$1"$2":');
+        fixes.push('unquoted-property-names');
+      }
+      
+      // Fix 11: Fix single quoted strings
+      if (/'[^']*'/.test(modifiedJson)) {
+        modifiedJson = modifiedJson.replace(/'([^']*)'/g, '"$1"');
+        fixes.push('single-quoted-strings');
+      }
 
       // Log if we made any changes
       if (modifiedJson !== json) {
@@ -114,7 +204,7 @@ export function sanitizeJson(json: string): string {
       } catch (secondError) {
         // If still not valid, log error but return the modified version
         // (it might be better than the original)
-        logger.error(`Failed to fully sanitize JSON: ${secondError.message}`);
+        logger.error(`Failed to fully sanitize JSON: ${(secondError as Error).message}`);
         return modifiedJson;
       }
     }
@@ -168,7 +258,14 @@ export function safeParse<T>(text: string, fallback?: T): T | null | undefined {
   if (!text) return fallback ?? null;
   
   try {
-    const sanitized = sanitizeJson(text);
+    // First try direct position 5 fix as it's a common issue
+    let sanitized = fixPosition5Error(text);
+    
+    // If that didn't work, try full sanitization
+    if (sanitized === text) {
+      sanitized = sanitizeJson(text);
+    }
+    
     return JSON.parse(sanitized) as T;
   } catch (error) {
     logger.error(`Error parsing JSON: ${(error as Error).message}`);

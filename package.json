@@ -1,6 +1,6 @@
 {
   "name": "claude-code-review-mcp",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "An MCP server for code reviews using OpenAI, Google, and Anthropic models",
   "main": "dist/index.js",
   "type": "module",
