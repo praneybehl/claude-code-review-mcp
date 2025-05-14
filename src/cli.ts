@@ -8,6 +8,7 @@ import { registerTools } from './tools/index.js';
 import * as logger from './utils/logger.js';
 import { getProviderSummary } from './utils/ai-providers.js';
 import { createSafeMcpServer, connectWithSafeTransport } from './server/index.js';
+import { initializeJsonSafety } from './utils/stdio-patch.js';
 
 /**
  * Global error handler to prevent unhandled exceptions from crashing the server
@@ -27,6 +28,19 @@ async function main() {
   logger.info(`Starting ${SERVER_NAME} v${SERVER_VERSION} (CLI)`);
   logger.info(`Node.js ${process.version}`);
   logger.info(`Process ID: ${process.pid}`);
+  
+  // Enable aggressive JSON safety features
+  logger.info('Enabling enhanced JSON safety features');
+  const restoreJsonSafety = initializeJsonSafety();
+  
+  // Register cleanup on exit
+  process.on('exit', () => {
+    try {
+      restoreJsonSafety();
+    } catch (e) {
+      // Ignore cleanup errors during exit
+    }
+  });
   
   // Validate environment variables
   const envErrors = validateEnv();
@@ -59,7 +73,7 @@ async function main() {
     await connectWithSafeTransport(server);
     
     // Note: The server will now handle stdin/stdout communication
-    logger.info('MCP CLI server ready');
+    logger.info('MCP CLI server ready with enhanced JSON safety');
     
   } catch (error) {
     logger.error("Error starting MCP CLI server:", error);
