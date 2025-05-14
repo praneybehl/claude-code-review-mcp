@@ -10,7 +10,7 @@ import * as logger from './utils/logger.js';
 import { createStreamResponse } from './utils/transport-helpers.js';
 
 // Server version and name
-const SERVER_VERSION = "0.5.2";
+const SERVER_VERSION = "0.5.3";
 const SERVER_NAME = "claude-code-review-mcp";
 
 /**
@@ -53,11 +53,26 @@ async function main() {
         // Reuse existing transport
         transport = transports[sessionId];
         
-        // Handle the request
-        const body = await req.json();
-        const streamResponse = createStreamResponse(writable);
-        // @ts-ignore: TypeScript doesn't understand our StreamableHTTPServerTransport needs
-        await transport.handleRequest(req as any, streamResponse as any, body);
+        try {
+          // Handle the request
+          const body = await req.json();
+          const streamResponse = createStreamResponse(writable);
+          // @ts-ignore: TypeScript doesn't understand our StreamableHTTPServerTransport needs
+          await transport.handleRequest(req as any, streamResponse as any, body);
+        } catch (reqError) {
+          logger.error("Error handling existing session request:", reqError);
+          // Close the writer with error info so the client gets a response
+          const writer = writable.getWriter();
+          writer.write(new TextEncoder().encode(JSON.stringify({
+            jsonrpc: "2.0",
+            error: {
+              code: -32000,
+              message: `Request handling error: ${reqError.message}`
+            },
+            id: null
+          })));
+          writer.close();
+        }
         
         return response;
       } else {
@@ -86,14 +101,29 @@ async function main() {
         // Register all tools
         registerTools(server);
 
-        // Connect to the MCP server
-        await server.connect(transport);
-        
-        // Handle the request
-        const body = await req.json();
-        const streamResponse = createStreamResponse(writable);
-        // @ts-ignore: TypeScript doesn't understand our StreamableHTTPServerTransport needs
-        await transport.handleRequest(req as any, streamResponse as any, body);
+        try {
+          // Connect to the MCP server
+          await server.connect(transport);
+          
+          // Handle the request
+          const body = await req.json();
+          const streamResponse = createStreamResponse(writable);
+          // @ts-ignore: TypeScript doesn't understand our StreamableHTTPServerTransport needs
+          await transport.handleRequest(req as any, streamResponse as any, body);
+        } catch (connError) {
+          logger.error("Error in MCP connection or request handling:", connError);
+          // Close the writer with error info so the client gets a response
+          const writer = writable.getWriter();
+          writer.write(new TextEncoder().encode(JSON.stringify({
+            jsonrpc: "2.0",
+            error: {
+              code: -32000,
+              message: `MCP server connection error: ${connError.message}`
+            },
+            id: null
+          })));
+          writer.close();
+        }
         
         return response;
       }
