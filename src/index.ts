@@ -9,7 +9,7 @@ import { registerTools } from './tools/index.js';
 import * as logger from './utils/logger.js';
 
 // Server version and name
-const SERVER_VERSION = "0.8.2";
+const SERVER_VERSION = "0.8.3";
 const SERVER_NAME = "claude-code-review-mcp";
 
 /**
@@ -26,21 +26,16 @@ async function main() {
   }
 
   try {
-    // Get package version from package.json
-    let packageVersion;
-    try {
-      // Import package.json for version info (dynamic import to work in production)
-      const pkg = await import('../package.json', { assert: { type: 'json' } });
-      packageVersion = pkg.default.version;
-    } catch (pkgErr) {
-      // Fallback to SERVER_VERSION if package.json can't be loaded
-      packageVersion = SERVER_VERSION;
-      logger.warn("Could not load package.json version:", pkgErr);
-    }
-    
-    // Log startup information with both package and code versions
-    logger.info(`Starting ${SERVER_NAME} v${SERVER_VERSION} (package v${packageVersion})`);
+    // Log startup information with version
+    logger.info(`Starting ${SERVER_NAME} v${SERVER_VERSION}`);
     logger.info(`Node.js ${process.version}`);
+    logger.info(`Process ID: ${process.pid}`);
+    
+    // Log environment variables for debugging (redacting sensitive values)
+    logger.info(`Environment: PORT=${PORT}, HOST=${HOST}`);
+    logger.info(`OpenAI API Key: ${process.env.OPENAI_API_KEY ? "[CONFIGURED]" : "[NOT SET]"}`);
+    logger.info(`Google API Key: ${process.env.GOOGLE_API_KEY ? "[CONFIGURED]" : "[NOT SET]"}`);
+    
     const availableModels = getAvailableModels();
     logger.info("Available models:", availableModels);
 

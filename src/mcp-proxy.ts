@@ -160,6 +160,12 @@ export async function startProxy(targetPort: number, targetHost: string): Promis
           // Convert the buffer to a string
           const responseText = data.toString('utf-8');
           
+          // Log raw response for debugging
+          if (responseText.includes('jsonrpc') || responseText.includes('content')) {
+            logger.info('Raw response from server (first 100 chars): ' + 
+              responseText.substring(0, 100).replace(/\n/g, '\\n'));
+          }
+          
           // Add to buffer - we need to handle potential fragmentation
           responseBuffer += responseText;
           
@@ -167,8 +173,18 @@ export async function startProxy(targetPort: number, targetHost: string): Promis
           if (responseBuffer.includes('{') || responseBuffer.includes('[')) {
             logger.info('Processing response with potential JSON');
             
+            // Explicitly fix the most common error seen in logs:
+            // "Expected ',' or ']' after array element in JSON at position 5 (line 1 column 6)"
+            // This likely indicates a missing comma in an array with format: [ "item" "item2" ]
+            responseBuffer = responseBuffer.replace(/\[\s*"([^"]+)"\s+"([^"]+)"/g, '["$1","$2"');
+            responseBuffer = responseBuffer.replace(/\[\s*'([^']+)'\s+'([^']+)'/g, '["$1","$2"');
+            
             // Ensure valid JSON in the response
             const sanitizedResponse = ensureValidJson(responseBuffer);
+            
+            // Log sanitized response for debugging
+            logger.info('Sanitized response (first 100 chars): ' + 
+              sanitizedResponse.substring(0, 100).replace(/\n/g, '\\n'));
             
             // Clear the buffer after processing
             responseBuffer = '';
