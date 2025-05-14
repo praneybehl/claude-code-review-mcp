@@ -10,7 +10,7 @@ import * as logger from './utils/logger.js';
 import { createStreamResponse } from './utils/transport-helpers.js';
 
 // Server version and name
-const SERVER_VERSION = "0.5.6";
+const SERVER_VERSION = "0.6.0";
 const SERVER_NAME = "claude-code-review-mcp";
 
 /**
@@ -187,12 +187,25 @@ async function main() {
       const actualPort = info.port;
       
       // Log all available endpoints
-      logger.info(`Server is running on http://${HOST}:${actualPort}`);
+      logger.info(`MCP Server is running on http://${HOST}:${actualPort}`);
       logger.info(`Health check: http://${HOST}:${actualPort}/`);
       logger.info(`MCP endpoint: http://${HOST}:${actualPort}/mcp`);
       
-      // Write port info to stderr instead of stdout to avoid MCP protocol issues
-      console.error(`CLAUDE_CODE_REVIEW_PORT=${actualPort}`);
+      // Start a proxy server that will handle JSON formatting
+      import('./mcp-proxy.js').then(({ startProxy }) => {
+        startProxy(actualPort, HOST).then((proxyPort) => {
+          // The proxy port is what we'll expose to Claude Desktop
+          logger.info(`JSON-safe proxy is running on http://${HOST}:${proxyPort}`);
+          logger.info(`Use this port when configuring Claude Desktop`);
+          
+          // Write port info to stderr to avoid MCP protocol issues
+          console.error(`CLAUDE_CODE_REVIEW_PORT=${proxyPort}`);
+        });
+      }).catch(err => {
+        logger.error("Failed to start proxy server:", err);
+        // Fall back to the original port if the proxy fails
+        console.error(`CLAUDE_CODE_REVIEW_PORT=${actualPort}`);
+      });
     });
 
   } catch (error) {
