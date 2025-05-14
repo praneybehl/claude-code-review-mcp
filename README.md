@@ -15,7 +15,7 @@ An MCP (Model Context Protocol) server that provides code review functionality u
 ### Global Installation
 
 ```bash
-npm install -g claude-code-review-mcp
+pnpm install -g claude-code-review-mcp
 ```
 
 ### Usage with npx (no installation)
@@ -89,6 +89,246 @@ You can also create a custom slash command by creating a file at `.claude/comman
 ```markdown
 I'll review your code using alternative LLM models. Model to use: $ARGUMENTS
 ```
+
+<details>
+<summary><b>Detailed Custom Slash Commands for Claude Code</b></summary>
+
+Claude Code supports custom slash commands that you can create to easily interact with the MCP server. Create these commands in the `.claude/commands/` directory within your project to enable powerful code review workflows.
+
+### Basic Setup
+
+First, create the commands directory if it doesn't exist:
+
+```bash
+mkdir -p .claude/commands
+```
+
+### Model Listing Command
+
+Create a command to list available models:
+
+```bash
+# Create the list-review-models.md file
+cat > .claude/commands/list-review-models.md << 'EOF'
+I'll check which alternative code review models are available through our MCP server.
+
+First, I'll use the MCP server to list all available models for code review.
+After that, I'll present the models in a clear table format with:
+- Model ID (what you'll use when requesting a review)
+- Provider (OpenAI or Google)
+- Description (size and capabilities)
+- Speed (relative performance)
+
+This will help you choose the right model for your code review needs.
+EOF
+```
+
+### Basic Code Review Command
+
+Create a simple review command that accepts a model name:
+
+```bash
+# Create the review-with.md file
+cat > .claude/commands/review-with.md << 'EOF'
+I'll review the code I've just worked on using an alternative LLM model to provide a second opinion.
+
+First, I'll identify the code changes or file you want reviewed. If you don't specify a file, I'll look at recent changes.
+
+Then, I'll send this code to be reviewed by the specified model through our MCP server.
+
+Available models (run /project:list-review-models to see all options):
+- OpenAI models (if configured): "gpt-4.1", "o4-mini", "o3-mini"
+- Google models (if configured): "gemini-2.5-pro-preview-05-06", "gemini-2.5-flash-preview-04-17"
+
+Model to use (leave blank for default): $ARGUMENTS
+EOF
+```
+
+### Structured Review Command
+
+Create a command specifically for structured reviews:
+
+```bash
+# Create the structured-review.md file
+cat > .claude/commands/structured-review.md << 'EOF'
+I'll perform a structured code review using an alternative LLM model.
+
+This review will be organized into clear sections:
+1. Overall summary
+2. Code quality assessment (strengths and weaknesses)
+3. Potential bugs with severity ratings (Low/Medium/High)
+4. Specific improvement suggestions
+5. Security considerations (if applicable)
+
+If you don't specify a model, I'll use the default available model.
+
+Model to use (optional): $ARGUMENTS
+EOF
+```
+
+### Freeform Review Command
+
+Create a command for narrative-style reviews:
+
+```bash
+# Create the freeform-review.md file
+cat > .claude/commands/freeform-review.md << 'EOF'
+I'll provide a conversational, narrative-style code review using an alternative LLM model.
+
+This will be a more holistic assessment of your code with flowing paragraphs rather than structured categories. This style works well for:
+- General impressions
+- High-level feedback
+- More nuanced commentary on code style and approach
+
+If you don't specify a model, I'll use the default available model.
+
+Model to use (optional): $ARGUMENTS
+EOF
+```
+
+### Review Specific File Command
+
+Create a command to review a specific file:
+
+```bash
+# Create the review-file.md file
+cat > .claude/commands/review-file.md << 'EOF'
+I'll review a specific file using an alternative LLM model.
+
+Please provide the file path to review and optionally the model to use.
+Format: [file_path] [model_name]
+
+For example:
+- "src/utils.js gemini-2.5-pro-preview-05-06" - Reviews utils.js with Gemini Pro
+- "lib/auth.ts" - Reviews auth.ts with the default model
+
+Input: $ARGUMENTS
+EOF
+```
+
+### Focus-Specific Review Commands
+
+Create commands for specialized reviews:
+
+```bash
+# Create security review command
+cat > .claude/commands/security-review.md << 'EOF'
+I'll perform a security-focused code review using an alternative LLM model.
+
+This review will specifically examine:
+- Potential security vulnerabilities
+- Input validation issues
+- Authentication/authorization flaws
+- Data protection concerns
+- Injection vulnerabilities
+- Secure coding best practices
+
+If you don't specify a model, I'll use a model recommended for security analysis.
+
+Model to use (optional): $ARGUMENTS
+EOF
+```
+
+```bash
+# Create performance review command
+cat > .claude/commands/performance-review.md << 'EOF'
+I'll perform a performance-focused code review using an alternative LLM model.
+
+This review will specifically examine:
+- Algorithm efficiency
+- Memory usage
+- Unnecessary computations
+- Loop optimizations
+- Data structure choices
+- Caching opportunities
+- Async/parallel processing considerations
+
+If you don't specify a model, I'll use a model that's good at performance analysis.
+
+Model to use (optional): $ARGUMENTS
+EOF
+```
+
+### Comprehensive Project Review Command
+
+Create a command for reviewing code with full project context:
+
+```bash
+# Create the project-review.md file
+cat > .claude/commands/project-review.md << 'EOF'
+I'll perform a comprehensive code review with full project context using an alternative LLM model.
+
+This review will:
+1. Analyze the code structure and organization
+2. Consider related files and dependencies
+3. Evaluate consistency with project patterns
+4. Assess integration with existing components
+5. Check alignment with project architecture
+
+I'll gather project context, including directory structure and related files, to ensure a thorough, context-aware review.
+
+Format: [file_to_review] [model_name]
+Example: "src/components/Button.jsx gemini-2.5-pro-preview-05-06"
+
+Input: $ARGUMENTS
+EOF
+```
+
+### Before and After Review Command
+
+Create a command to compare code changes:
+
+```bash
+# Create the diff-review.md file
+cat > .claude/commands/diff-review.md << 'EOF'
+I'll review the changes you've made to a file using an alternative LLM model.
+
+This will:
+1. Identify what was changed between versions
+2. Evaluate if the changes address the intended purpose
+3. Check for any new issues introduced
+4. Suggest potential improvements to the changes
+
+I'll need to know which file to examine. If you've been working on a file with Claude Code, I'll automatically find the changes.
+
+Model to use (optional): $ARGUMENTS
+EOF
+```
+
+### Using Custom Slash Commands
+
+Once you've created these commands, you can use them in Claude Code by typing `/project:` followed by the command name. For example:
+
+```
+/project:list-review-models
+/project:review-with gemini-2.5-pro-preview-05-06
+/project:structured-review o4-mini
+/project:security-review
+/project:review-file src/utils.js gemini-2.5-flash-preview-04-17
+```
+
+### Tips for Custom Commands
+
+- **Command Discovery**: Type `/project:` in Claude Code to see a list of available commands
+- **Default Models**: If you don't specify a model, the command will use the default model (typically o4-mini if available)
+- **Multiple Reviews**: You can get multiple perspectives by running reviews with different models
+- **Project Context**: For the most relevant reviews, use commands that include project context
+- **Specialized Focus**: Use the focus-specific commands when you have particular concerns about security, performance, etc.
+
+### Example Workflow
+
+A typical workflow might look like:
+
+1. Work on code with Claude Code
+2. Run `/project:list-review-models` to see available options
+3. Run `/project:structured-review gemini-2.5-pro-preview-05-06` to get a structured review from Google's model
+4. Compare with Claude's suggestions
+5. Make improvements based on both perspectives
+6. Run `/project:diff-review` to review the changes
+
+These custom commands enable smooth integration between Claude Code and the claude-code-review-mcp server, providing valuable "second opinions" for your code.
+
+</details>
 
 ## Example Usage
 
@@ -244,16 +484,16 @@ Follow the specific MCP configuration guidelines for your client, using the same
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Start in development mode
-npm run dev
+pnpm run dev
 
 # Build for production
-npm run build
+pnpm run build
 
 # Start in production mode
-npm run start
+pnpm run start
 ```
 
 ## License
