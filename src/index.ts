@@ -9,7 +9,7 @@ import { registerTools } from './tools/index.js';
 import * as logger from './utils/logger.js';
 
 // Server version and name
-const SERVER_VERSION = "0.8.3";
+const SERVER_VERSION = "0.8.4";
 const SERVER_NAME = "claude-code-review-mcp";
 
 /**

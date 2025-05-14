@@ -176,6 +176,21 @@ export async function startProxy(targetPort: number, targetHost: string): Promis
             // Explicitly fix the most common error seen in logs:
             // "Expected ',' or ']' after array element in JSON at position 5 (line 1 column 6)"
             // This likely indicates a missing comma in an array with format: [ "item" "item2" ]
+            
+            // First, fix the exact position 5 error by ensuring proper array formatting
+            if (responseBuffer.includes('[') && responseBuffer.substring(0, 10).includes('[')) {
+              logger.info('Detected potential array at the beginning of response - fixing format');
+              
+              // Replace [ "item with ["item and ensure commas between items
+              responseBuffer = responseBuffer.replace(/\[\s*"/g, '["');
+              responseBuffer = responseBuffer.replace(/\[\s*'/g, '["');
+              responseBuffer = responseBuffer.replace(/"\s+"/g, '","');
+              responseBuffer = responseBuffer.replace(/'\s+'/g, '","');
+              responseBuffer = responseBuffer.replace(/"\s+'/g, '","');
+              responseBuffer = responseBuffer.replace(/'\s+"/g, '","');
+            }
+            
+            // More targeted replacements for missing commas in arrays
             responseBuffer = responseBuffer.replace(/\[\s*"([^"]+)"\s+"([^"]+)"/g, '["$1","$2"');
             responseBuffer = responseBuffer.replace(/\[\s*'([^']+)'\s+'([^']+)'/g, '["$1","$2"');
             
