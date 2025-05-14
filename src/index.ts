@@ -9,7 +9,7 @@ import { registerTools } from './tools/index.js';
 import * as logger from './utils/logger.js';
 
 // Server version and name
-const SERVER_VERSION = "0.8.0";
+const SERVER_VERSION = "0.8.1";
 const SERVER_NAME = "claude-code-review-mcp";
 
 /**
@@ -193,8 +193,21 @@ async function main() {
       logger.info(`MCP endpoint: http://${HOST}:${actualPort}/mcp`);
       logger.info(`SSE endpoint: http://${HOST}:${actualPort}/sse`);
       
-      // Output the port for Claude Code to use (shown on stderr to avoid conflicting with MCP protocol)
-      console.error(`CLAUDE_CODE_REVIEW_PORT=${actualPort}`);
+      // Start a proxy server that will handle JSON formatting for Claude Desktop
+      import('./mcp-proxy.js').then(({ startProxy }) => {
+        startProxy(actualPort, HOST).then((proxyPort) => {
+          // The proxy port is what we'll expose to Claude Desktop
+          logger.info(`Claude Desktop JSON-safe proxy is running on http://${HOST}:${proxyPort}`);
+          logger.info(`Use this port when configuring Claude Desktop`);
+          
+          // Write port info to stderr so Claude Desktop can read it
+          console.error(`CLAUDE_CODE_REVIEW_PORT=${proxyPort}`);
+        });
+      }).catch(err => {
+        logger.error("Failed to start proxy server:", err);
+        // Fall back to the original port if the proxy fails
+        console.error(`CLAUDE_CODE_REVIEW_PORT=${actualPort}`);
+      });
     });
 
   } catch (error) {

@@ -475,7 +475,7 @@ In Claude Desktop settings, configure the MCP as follows:
 }
 ```
 
-The server uses the MCP SDK's built-in JSON handling to ensure compatibility with Claude Desktop and other MCP clients.
+The server uses a combination of MCP SDK features and a custom JSON-safe proxy specifically for Claude Desktop. This ensures compatibility with all MCP clients, including Claude Desktop which requires special handling of certain JSON patterns.
 
 ### Cursor and Windsurf
 
