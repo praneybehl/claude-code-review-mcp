@@ -13,14 +13,18 @@ export function createStreamResponse(writeStream: WritableStream) {
   return {
     write: (chunk: any) => {
       const writer = writeStream.getWriter();
-      writer.write(new TextEncoder().encode(chunk));
+      // Ensure chunk is properly serialized if it's an object
+      const data = typeof chunk === 'string' ? chunk : JSON.stringify(chunk);
+      writer.write(new TextEncoder().encode(data));
       writer.releaseLock();
       return true;
     },
     end: (chunk?: any) => {
       const writer = writeStream.getWriter();
       if (chunk) {
-        writer.write(new TextEncoder().encode(chunk));
+        // Ensure chunk is properly serialized if it's an object
+        const data = typeof chunk === 'string' ? chunk : JSON.stringify(chunk);
+        writer.write(new TextEncoder().encode(data));
       }
       writer.close();
       return true;

@@ -15,16 +15,23 @@ An MCP (Model Context Protocol) server that provides code review functionality u
 ### Global Installation
 
 ```bash
-pnpm install -g claude-code-review-mcp
+npm install -g claude-code-review-mcp
 ```
 
 ### Usage with npx (no installation)
 
 ```bash
+# Set environment variables separately
+export OPENAI_API_KEY=<key>
+npx -y claude-code-review-mcp
+
+# Or use inline environment setting
 OPENAI_API_KEY=<key> npx -y claude-code-review-mcp
-# or
+
+# Or with Google API key
 GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
-# or use both
+
+# Or use both API keys
 OPENAI_API_KEY=<key> GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
 ```
 
@@ -81,7 +88,13 @@ Lists all available models based on provided API keys, including model IDs and h
 To add this MCP server to Claude Code:
 
 ```bash
-claude mcp add code-review -- OPENAI_API_KEY=<key> GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
+# Use environment variables properly (recommended approach)
+claude mcp add code-review -s user -e OPENAI_API_KEY=<key> -e GOOGLE_API_KEY=<key> -- npx -y claude-code-review-mcp
+
+# Alternative: Export the variables before adding the MCP
+export OPENAI_API_KEY=<key>
+export GOOGLE_API_KEY=<key>
+claude mcp add code-review -s user -- npx -y claude-code-review-mcp
 ```
 
 You can also create a custom slash command by creating a file at `.claude/commands/review-with.md`:
@@ -335,17 +348,27 @@ These custom commands enable smooth integration between Claude Code and the clau
 ### Starting the MCP Server
 
 ```bash
-# Start with OpenAI API key
+# Start with OpenAI API key (using exports, recommended)
+export OPENAI_API_KEY=<key>
+npx -y claude-code-review-mcp
+
+# Or with inline environment variables
 OPENAI_API_KEY=<key> npx -y claude-code-review-mcp
 
 # Start with Google Gemini API key
-GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
+export GOOGLE_API_KEY=<key>
+npx -y claude-code-review-mcp
 
 # Use both API keys for more model options
-OPENAI_API_KEY=<key> GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
+export OPENAI_API_KEY=<key>
+export GOOGLE_API_KEY=<key>
+npx -y claude-code-review-mcp
 
 # Use custom port and host
-OPENAI_API_KEY=<key> PORT=8080 HOST=0.0.0.0 npx -y claude-code-review-mcp
+export OPENAI_API_KEY=<key>
+export PORT=8080 
+export HOST=0.0.0.0
+npx -y claude-code-review-mcp
 ```
 
 ### Using with MCP Clients
@@ -428,7 +451,7 @@ All review tools accept the following input:
 1. Add the MCP server:
 
 ```bash
-claude mcp add code-review -- npx -y claude-code-review-mcp
+claude mcp add code-review -s user npx -y claude-code-review-mcp
 ```
 
 2. Use in Claude Code:
@@ -484,16 +507,16 @@ Follow the specific MCP configuration guidelines for your client, using the same
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
 # Start in development mode
-pnpm run dev
+npm run dev
 
 # Build for production
-pnpm run build
+npm run build
 
 # Start in production mode
-pnpm run start
+npm run start
 ```
 
 ## License
