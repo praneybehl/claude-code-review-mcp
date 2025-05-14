@@ -44,7 +44,7 @@ The server requires at least one of the following API keys:
 
 Optional configuration:
 
-- `PORT`: Server port (default: 3000)
+- `PORT`: Server port (default: dynamic - an available port will be chosen)
 - `HOST`: Server host (default: 127.0.0.1)
 - `LOG_LEVEL`: Log level (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR; default: 1)
 
@@ -373,7 +373,7 @@ npx -y claude-code-review-mcp
 
 ### Using with MCP Clients
 
-Once the server is running, you can connect to it from any MCP client like Claude Code, Claude Desktop, Cursor, or Windsurf using the server's URL (default: http://127.0.0.1:3000).
+Once the server is running, you can connect to it from any MCP client like Claude Code, Claude Desktop, Cursor, or Windsurf using the server's URL. The server will display the actual URL and port in its startup logs (using a dynamically assigned port to avoid conflicts).
 
 ## Input Schema
 
@@ -462,7 +462,7 @@ claude mcp add code-review -s user npx -y claude-code-review-mcp
 
 ### Claude Desktop
 
-In Claude Desktop, configure the MCP as follows:
+In Claude Desktop settings, configure the MCP as follows:
 
 ```json
 "claude-code-review-mcp": {
@@ -474,6 +474,8 @@ In Claude Desktop, configure the MCP as follows:
   }
 }
 ```
+
+The server uses the MCP SDK's built-in JSON handling to ensure compatibility with Claude Desktop and other MCP clients.
 
 ### Cursor and Windsurf
 

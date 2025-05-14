@@ -9,7 +9,34 @@ import {
 } from "../utils/ai-providers.js";
 import { getAvailableModels, getDefaultModel, isModelAvailable } from "../config/index.js";
 import * as logger from "../utils/logger.js";
-import { formatForMcpResponse } from "../utils/transport-helpers.js";
+
+/**
+ * Helper function to sanitize model IDs in results
+ * @param models Object containing model ID keys that may have dots or hyphens
+ * @returns A copy with no special characters in keys
+ */
+function sanitizeModelIds(data: Record<string, any>): Record<string, any> {
+  // Process available models to convert any non-standard keys
+  if (data && typeof data === 'object' && 'availableModels' in data) {
+    const models = data.availableModels || {};
+    const sanitizedModels: Record<string, string> = {};
+    
+    // Sanitize model keys - replace dots and hyphens with underscores
+    for (const [modelId, modelName] of Object.entries(models)) {
+      // Convert model IDs like "gemini-1.5-pro" to "gemini_1_5_pro"
+      const safeKey = modelId.replace(/[.-]/g, '_');
+      sanitizedModels[safeKey] = String(modelName);
+    }
+    
+    // Return a new object with sanitized model IDs
+    return {
+      ...data,
+      availableModels: sanitizedModels
+    };
+  }
+  
+  return data;
+}
 
 /**
  * Register all MCP tools for the code review server
@@ -51,14 +78,9 @@ function registerReviewCodeStructuredTool(server: McpServer): void {
           const availableModels = getAvailableModels();
           
           return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                modelUsed: "None",
-                error: `Model ${input.model} is not available or the required API key is not provided.`,
-                availableModels: formatForMcpResponse(availableModels)
-              })
-            }]
+            modelUsed: "None",
+            error: `Model ${input.model} is not available or the required API key is not provided.`,
+            availableModels: sanitizeModelIds({availableModels}).availableModels
           };
         }
 
@@ -69,27 +91,15 @@ function registerReviewCodeStructuredTool(server: McpServer): void {
           modelUsed: result.modelUsed
         });
 
-        // Ensure proper serialization by converting to and from JSON
-        const safeResult = formatForMcpResponse(result);
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify(safeResult)
-          }]
-        };
+        // Return the review result directly - MCP SDK will handle serialization
+        return sanitizeModelIds(result);
       } catch (error) {
         logger.error("Error in reviewCodeStructured tool", error);
         const availableModels = getAvailableModels();
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              modelUsed: "None",
-              error: `Error generating review: ${(error as Error).message}`,
-              availableModels: formatForMcpResponse(availableModels)
-            })
-          }]
+          modelUsed: "None",
+          error: `Error generating review: ${(error as Error).message}`,
+          availableModels: sanitizeModelIds({availableModels}).availableModels
         };
       }
     }
@@ -127,14 +137,9 @@ function registerReviewCodeFreeformTool(server: McpServer): void {
           const availableModels = getAvailableModels();
           
           return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                modelUsed: "None",
-                error: `Model ${input.model} is not available or the required API key is not provided.`,
-                availableModels: formatForMcpResponse(availableModels)
-              })
-            }]
+            modelUsed: "None",
+            error: `Model ${input.model} is not available or the required API key is not provided.`,
+            availableModels: sanitizeModelIds({availableModels}).availableModels
           };
         }
 
@@ -145,27 +150,15 @@ function registerReviewCodeFreeformTool(server: McpServer): void {
           modelUsed: result.modelUsed
         });
 
-        // Ensure proper serialization by converting to and from JSON
-        const safeResult = formatForMcpResponse(result);
-        
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify(safeResult)
-          }]
-        };
+        // Return the review result directly - MCP SDK will handle serialization
+        return sanitizeModelIds(result);
       } catch (error) {
         logger.error("Error in reviewCodeFreeform tool", error);
         const availableModels = getAvailableModels();
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              modelUsed: "None",
-              error: `Error generating review: ${(error as Error).message}`,
-              availableModels: formatForMcpResponse(availableModels)
-            })
-          }]
+          modelUsed: "None",
+          error: `Error generating review: ${(error as Error).message}`,
+          availableModels: sanitizeModelIds({availableModels}).availableModels
         };
       }
     }
@@ -185,29 +178,17 @@ function registerListModelsTool(server: McpServer): void {
       try {
         const availableModels = getAvailableModels();
         
-        // Ensure proper serialization
-        const safeModels = formatForMcpResponse(availableModels);
-        
+        // Return the models directly - MCP SDK will handle serialization
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              availableModels: safeModels,
-              modelUsed: "None"
-            })
-          }]
+          availableModels: sanitizeModelIds({availableModels}).availableModels,
+          modelUsed: "None"
         };
       } catch (error) {
         logger.error("Error in listModels tool", error);
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              availableModels: {},
-              modelUsed: "None",
-              error: `Error listing models: ${(error as Error).message}`
-            })
-          }]
+          availableModels: {},
+          modelUsed: "None",
+          error: `Error listing models: ${(error as Error).message}`
         };
       }
     }

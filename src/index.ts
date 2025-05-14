@@ -1,16 +1,15 @@
 #!/usr/bin/env node
-import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
+import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { randomUUID } from "node:crypto";
 import { PORT, HOST, getAvailableModels } from './config/index.js';
 import { registerTools } from './tools/index.js';
 import * as logger from './utils/logger.js';
-import { createStreamResponse } from './utils/transport-helpers.js';
 
 // Server version and name
-const SERVER_VERSION = "0.6.0";
+const SERVER_VERSION = "0.8.0";
 const SERVER_NAME = "claude-code-review-mcp";
 
 /**
@@ -32,144 +31,28 @@ async function main() {
     const availableModels = getAvailableModels();
     logger.info("Available models:", availableModels);
 
-    // Create Hono app
-    const app = new Hono();
-
-    // Map to store transports by session ID
-    const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
-
-    // Handle POST requests for client-to-server communication
-    app.post('/mcp', async (c) => {
-      const req = c.req.raw;
-      const { readable, writable } = new TransformStream();
-      const response = new Response(readable);
-      
-      // Check for existing session ID
-      const sessionId = req.headers.get('mcp-session-id');
-      let transport: StreamableHTTPServerTransport;
-      
-
-      if (sessionId && transports[sessionId]) {
-        // Reuse existing transport
-        transport = transports[sessionId];
-        
-        try {
-          // Handle the request
-          const body = await req.json();
-          const streamResponse = createStreamResponse(writable);
-          // @ts-ignore: TypeScript doesn't understand our StreamableHTTPServerTransport needs
-          await transport.handleRequest(req as any, streamResponse as any, body);
-        } catch (reqError) {
-          logger.error("Error handling existing session request:", reqError);
-          // Close the writer with error info so the client gets a response
-          const writer = writable.getWriter();
-          writer.write(new TextEncoder().encode(JSON.stringify({
-            jsonrpc: "2.0",
-            error: {
-              code: -32000,
-              message: `Request handling error: ${reqError.message}`
-            },
-            id: null
-          })));
-          writer.close();
-        }
-        
-        return response;
-      } else {
-        // New transport for initialization request
-        transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: () => randomUUID(),
-          onsessioninitialized: (newSessionId) => {
-            // Store the transport by session ID
-            transports[newSessionId] = transport;
-          }
-        });
-
-        // Clean up transport when closed
-        transport.onclose = () => {
-          if (transport.sessionId) {
-            delete transports[transport.sessionId];
-          }
-        };
-
-        // Create MCP server
-        const server = new McpServer({
-          name: SERVER_NAME,
-          version: SERVER_VERSION
-        });
-
-        // Register all tools
-        registerTools(server);
-
-        try {
-          // Connect to the MCP server
-          await server.connect(transport);
-          
-          // Handle the request
-          const body = await req.json();
-          const streamResponse = createStreamResponse(writable);
-          // @ts-ignore: TypeScript doesn't understand our StreamableHTTPServerTransport needs
-          await transport.handleRequest(req as any, streamResponse as any, body);
-        } catch (connError) {
-          logger.error("Error in MCP connection or request handling:", connError);
-          // Close the writer with error info so the client gets a response
-          const writer = writable.getWriter();
-          writer.write(new TextEncoder().encode(JSON.stringify({
-            jsonrpc: "2.0",
-            error: {
-              code: -32000,
-              message: `MCP server connection error: ${connError.message}`
-            },
-            id: null
-          })));
-          writer.close();
-        }
-        
-        return response;
-      }
+    // Create the MCP server instance
+    const server = new McpServer({
+      name: SERVER_NAME,
+      version: SERVER_VERSION
     });
 
-    // Handle GET requests for server-to-client notifications
-    app.get('/mcp', async (c) => {
-      const req = c.req.raw;
-      const { readable, writable } = new TransformStream();
-      const response = new Response(readable);
-      
-      const sessionId = req.headers.get('mcp-session-id');
-      if (!sessionId || !transports[sessionId]) {
-        return c.text('Invalid or missing session ID', 400);
-      }
-      
-      const transport = transports[sessionId];
-      const streamResponse = createStreamResponse(writable);
-      // @ts-ignore: TypeScript doesn't understand our StreamableHTTPServerTransport needs
-      await transport.handleRequest(req as any, streamResponse as any);
-      
-      return response;
-    });
+    // Register all tools
+    registerTools(server);
 
-    // Handle DELETE requests for session termination
-    app.delete('/mcp', async (c) => {
-      const req = c.req.raw;
-      const { readable, writable } = new TransformStream();
-      const response = new Response(readable);
-      
-      const sessionId = req.headers.get('mcp-session-id');
-      if (!sessionId || !transports[sessionId]) {
-        return c.text('Invalid or missing session ID', 400);
-      }
-      
-      const transport = transports[sessionId];
-      const streamResponse = createStreamResponse(writable);
-      // @ts-ignore: TypeScript doesn't understand our StreamableHTTPServerTransport needs
-      await transport.handleRequest(req as any, streamResponse as any);
-      
-      return response;
-    });
+    // Create Express app
+    const app = express();
+    app.use(express.json());
 
-    // Add health check endpoint
-    app.get('/', (c) => {
-      return c.json({
+    // Store transports for each session type
+    const transports = {
+      streamable: {} as Record<string, StreamableHTTPServerTransport>,
+      sse: {} as Record<string, SSEServerTransport>
+    };
+
+    // Health check endpoint
+    app.get('/', (req, res) => {
+      res.json({
         name: SERVER_NAME,
         version: SERVER_VERSION,
         status: "up",
@@ -177,35 +60,141 @@ async function main() {
       });
     });
 
-    // Start the server on any available port if PORT is 0
-    serve({
-      fetch: app.fetch,
-      port: PORT,
-      hostname: HOST
-    }, (info) => {
-      // Store the actual port that was assigned
-      const actualPort = info.port;
+    // Modern Streamable HTTP endpoint for MCP
+    app.all('/mcp', async (req, res) => {
+      const sessionId = req.headers['mcp-session-id'] as string;
       
-      // Log all available endpoints
+      if (req.method === 'POST') {
+        // If there's an existing session, use it
+        if (sessionId && transports.streamable[sessionId]) {
+          try {
+            await transports.streamable[sessionId].handleRequest(req, res, req.body);
+          } catch (error) {
+            logger.error("Error handling request with existing transport:", error);
+            res.status(500).json({
+              jsonrpc: "2.0",
+              error: {
+                code: -32000,
+                message: `Request handling error: ${error.message}`
+              },
+              id: null
+            });
+          }
+        } else {
+          // Create a new transport for the session with JSON response enabled
+          const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: () => randomUUID(),
+            onsessioninitialized: (newSessionId) => {
+              transports.streamable[newSessionId] = transport;
+            },
+            enableJsonResponse: true // Enable JSON response mode by default
+          });
+
+          // Clean up transport when closed
+          transport.onclose = () => {
+            if (transport.sessionId) {
+              delete transports.streamable[transport.sessionId];
+            }
+          };
+
+          try {
+            // Connect to the MCP server
+            await server.connect(transport);
+            
+            // Handle the request (enableJsonResponse is set in the transport constructor)
+            await transport.handleRequest(req, res, req.body);
+          } catch (error) {
+            logger.error("Error setting up MCP connection:", error);
+            res.status(500).json({
+              jsonrpc: "2.0",
+              error: {
+                code: -32000,
+                message: `MCP server connection error: ${error.message}`
+              },
+              id: null
+            });
+          }
+        }
+      } else if (req.method === 'GET') {
+        // Handle GET requests for notifications
+        if (!sessionId || !transports.streamable[sessionId]) {
+          return res.status(400).send('Invalid or missing session ID');
+        }
+        
+        try {
+          await transports.streamable[sessionId].handleRequest(req, res);
+        } catch (error) {
+          logger.error("Error handling GET request:", error);
+          res.status(500).json({
+            jsonrpc: "2.0",
+            error: {
+              code: -32000,
+              message: `Error handling GET request: ${error.message}`
+            },
+            id: null
+          });
+        }
+      } else if (req.method === 'DELETE') {
+        // Handle DELETE requests for session termination
+        if (!sessionId || !transports.streamable[sessionId]) {
+          return res.status(400).send('Invalid or missing session ID');
+        }
+        
+        try {
+          await transports.streamable[sessionId].handleRequest(req, res);
+        } catch (error) {
+          logger.error("Error handling DELETE request:", error);
+          res.status(500).json({
+            jsonrpc: "2.0",
+            error: {
+              code: -32000,
+              message: `Error handling DELETE request: ${error.message}`
+            },
+            id: null
+          });
+        }
+      } else {
+        res.status(405).send('Method not allowed');
+      }
+    });
+
+    // Legacy SSE endpoint for older clients
+    app.get('/sse', async (req, res) => {
+      // Create SSE transport for legacy clients
+      const transport = new SSEServerTransport('/messages', res);
+      transports.sse[transport.sessionId] = transport;
+      
+      res.on("close", () => {
+        delete transports.sse[transport.sessionId];
+      });
+      
+      await server.connect(transport);
+    });
+
+    // Legacy message endpoint for older clients
+    app.post('/messages', async (req, res) => {
+      const sessionId = req.query.sessionId as string;
+      const transport = transports.sse[sessionId];
+      if (transport) {
+        await transport.handlePostMessage(req, res, req.body);
+      } else {
+        res.status(400).send('No transport found for sessionId');
+      }
+    });
+
+    // Start listening on the specified or dynamic port
+    const expressServer = app.listen(PORT, HOST, () => {
+      // Get the actual port that was assigned
+      const actualPort = (expressServer.address() as any).port;
+      
+      // Log server information
       logger.info(`MCP Server is running on http://${HOST}:${actualPort}`);
       logger.info(`Health check: http://${HOST}:${actualPort}/`);
       logger.info(`MCP endpoint: http://${HOST}:${actualPort}/mcp`);
+      logger.info(`SSE endpoint: http://${HOST}:${actualPort}/sse`);
       
-      // Start a proxy server that will handle JSON formatting
-      import('./mcp-proxy.js').then(({ startProxy }) => {
-        startProxy(actualPort, HOST).then((proxyPort) => {
-          // The proxy port is what we'll expose to Claude Desktop
-          logger.info(`JSON-safe proxy is running on http://${HOST}:${proxyPort}`);
-          logger.info(`Use this port when configuring Claude Desktop`);
-          
-          // Write port info to stderr to avoid MCP protocol issues
-          console.error(`CLAUDE_CODE_REVIEW_PORT=${proxyPort}`);
-        });
-      }).catch(err => {
-        logger.error("Failed to start proxy server:", err);
-        // Fall back to the original port if the proxy fails
-        console.error(`CLAUDE_CODE_REVIEW_PORT=${actualPort}`);
-      });
+      // Output the port for Claude Code to use (shown on stderr to avoid conflicting with MCP protocol)
+      console.error(`CLAUDE_CODE_REVIEW_PORT=${actualPort}`);
     });
 
   } catch (error) {
