@@ -9,6 +9,7 @@ import {
 } from "../utils/ai-providers.js";
 import { getAvailableModels, getDefaultModel, isModelAvailable } from "../config/index.js";
 import * as logger from "../utils/logger.js";
+import { formatForMcpResponse } from "../utils/transport-helpers.js";
 
 /**
  * Register all MCP tools for the code review server
@@ -55,7 +56,7 @@ function registerReviewCodeStructuredTool(server: McpServer): void {
               text: JSON.stringify({
                 modelUsed: "None",
                 error: `Model ${input.model} is not available or the required API key is not provided.`,
-                availableModels: JSON.parse(JSON.stringify(availableModels)) // Ensure proper serialization
+                availableModels: formatForMcpResponse(availableModels)
               })
             }]
           };
@@ -69,7 +70,7 @@ function registerReviewCodeStructuredTool(server: McpServer): void {
         });
 
         // Ensure proper serialization by converting to and from JSON
-        const safeResult = JSON.parse(JSON.stringify(result));
+        const safeResult = formatForMcpResponse(result);
         
         return {
           content: [{
@@ -86,7 +87,7 @@ function registerReviewCodeStructuredTool(server: McpServer): void {
             text: JSON.stringify({
               modelUsed: "None",
               error: `Error generating review: ${(error as Error).message}`,
-              availableModels: JSON.parse(JSON.stringify(availableModels)) // Ensure proper serialization
+              availableModels: formatForMcpResponse(availableModels)
             })
           }]
         };
@@ -131,7 +132,7 @@ function registerReviewCodeFreeformTool(server: McpServer): void {
               text: JSON.stringify({
                 modelUsed: "None",
                 error: `Model ${input.model} is not available or the required API key is not provided.`,
-                availableModels: JSON.parse(JSON.stringify(availableModels)) // Ensure proper serialization
+                availableModels: formatForMcpResponse(availableModels)
               })
             }]
           };
@@ -145,7 +146,7 @@ function registerReviewCodeFreeformTool(server: McpServer): void {
         });
 
         // Ensure proper serialization by converting to and from JSON
-        const safeResult = JSON.parse(JSON.stringify(result));
+        const safeResult = formatForMcpResponse(result);
         
         return {
           content: [{
@@ -162,7 +163,7 @@ function registerReviewCodeFreeformTool(server: McpServer): void {
             text: JSON.stringify({
               modelUsed: "None",
               error: `Error generating review: ${(error as Error).message}`,
-              availableModels: JSON.parse(JSON.stringify(availableModels)) // Ensure proper serialization
+              availableModels: formatForMcpResponse(availableModels)
             })
           }]
         };
@@ -185,7 +186,7 @@ function registerListModelsTool(server: McpServer): void {
         const availableModels = getAvailableModels();
         
         // Ensure proper serialization
-        const safeModels = JSON.parse(JSON.stringify(availableModels));
+        const safeModels = formatForMcpResponse(availableModels);
         
         return {
           content: [{

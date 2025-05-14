@@ -10,7 +10,7 @@ import * as logger from './utils/logger.js';
 import { createStreamResponse } from './utils/transport-helpers.js';
 
 // Server version and name
-const SERVER_VERSION = "0.5.4";
+const SERVER_VERSION = "0.5.5";
 const SERVER_NAME = "claude-code-review-mcp";
 
 /**
@@ -191,8 +191,8 @@ async function main() {
       logger.info(`Health check: http://${HOST}:${actualPort}/`);
       logger.info(`MCP endpoint: http://${HOST}:${actualPort}/mcp`);
       
-      // Write port info to stdout so calling processes can capture it
-      console.log(`CLAUDE_CODE_REVIEW_PORT=${actualPort}`);
+      // Write port info to stderr instead of stdout to avoid MCP protocol issues
+      console.error(`CLAUDE_CODE_REVIEW_PORT=${actualPort}`);
     });
 
   } catch (error) {
