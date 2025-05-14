@@ -10,7 +10,7 @@ import * as logger from './utils/logger.js';
 import { createStreamResponse } from './utils/transport-helpers.js';
 
 // Server version and name
-const SERVER_VERSION = "0.5.5";
+const SERVER_VERSION = "0.5.6";
 const SERVER_NAME = "claude-code-review-mcp";
 
 /**
