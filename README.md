@@ -494,28 +494,6 @@ In Claude Desktop settings, configure the MCP as follows:
 }
 ```
 
-### MCP Inspector
-
-For using with the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector), use the specialized compatibility wrapper which fixes JSON-RPC formatting issues:
-
-```bash
-# Start the MCP server with Inspector compatibility
-npx -y claude-code-review-mcp-inspector
-
-# Or with environment variables
-OPENAI_API_KEY=<key> npx -y claude-code-review-mcp-inspector
-```
-
-When integrating with Claude Code, use:
-
-```bash
-claude mcp add code-review -s user npx -y claude-code-review-mcp-inspector
-```
-
-The wrapper specifically addresses JSON parsing issues that can occur with the MCP Inspector by providing an additional compatibility layer.
-
-The server uses advanced JSON output sanitization for full compatibility with all MCP clients, including Claude Desktop and MCP Inspector.
-
 ### Cursor and Windsurf
 
 Follow the specific MCP configuration guidelines for your client, using the same command and environment variables.
