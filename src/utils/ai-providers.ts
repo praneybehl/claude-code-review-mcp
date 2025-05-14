@@ -1,19 +1,45 @@
 import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
+import { anthropic } from "@ai-sdk/anthropic";
 import { generateObject, generateText } from "ai";
 import type { LanguageModelV1 } from "ai";
+import pRetry from "p-retry";
 import { 
   structuredReviewOutputSchema, 
-  freeformReviewOutputSchema
+  freeformReviewOutputSchema,
+  Review
 } from "../schemas/index.js";
 import type { 
   CodeReviewInput,
   StructuredReviewOutput,
   FreeformReviewOutput
 } from "../schemas/index.js";
-import { getModelProvider, modelMapping, isModelAvailable } from "../config/index.js";
+import { 
+  getModelProvider, 
+  modelMapping, 
+  isModelAvailable, 
+  ModelProvider,
+  getAvailableModels,
+  OPENAI_API_KEY,
+  GOOGLE_API_KEY,
+  ANTHROPIC_API_KEY
+} from "../config/index.js";
+import * as logger from "./logger.js";
 
-// Create prompts for the AI models
+/**
+ * Enhanced AI Provider module
+ * Handles AI provider integration with proper error handling and retry logic
+ */
+
+// Maximum number of retries for API failures
+const MAX_RETRIES = 3;
+
+// Default AI request timeout (15 seconds)
+const REQUEST_TIMEOUT = 15000;
+
+/**
+ * Create a structured review prompt based on input
+ */
 function createStructuredReviewPrompt(input: CodeReviewInput): string {
   let prompt = `Review the following code${input.filename ? ` (${input.filename})` : ""}${input.language ? ` written in ${input.language}` : ""}:
 
@@ -63,6 +89,9 @@ Your review should be structured, actionable, and professional.`;
   return prompt;
 }
 
+/**
+ * Create a freeform review prompt based on input
+ */
 function createFreeformReviewPrompt(input: CodeReviewInput): string {
   let prompt = `Review the following code${input.filename ? ` (${input.filename})` : ""}${input.language ? ` written in ${input.language}` : ""}:
 
@@ -112,7 +141,9 @@ Write your review in a clear, professional manner, focusing on being helpful and
   return prompt;
 }
 
-// Get the appropriate model
+/**
+ * Get the appropriate AI model instance based on provider
+ */
 function getModel(modelId: string): LanguageModelV1 {
   if (!isModelAvailable(modelId)) {
     throw new Error(`Model ${modelId} is not available.`);
@@ -120,83 +151,153 @@ function getModel(modelId: string): LanguageModelV1 {
 
   const provider = getModelProvider(modelId);
   
-  if (provider === "openai") {
-    return openai(modelId);
-  } else {
-    return google(modelId);
+  // Set up environment variables for providers - the SDKs read from process.env
+  // We'll set them temporarily for the duration of this call
+  const originalEnv = { ...process.env };
+  
+  try {
+    switch (provider) {
+      case "openai":
+        process.env.OPENAI_API_KEY = OPENAI_API_KEY;
+        return openai(modelId as any);
+        
+      case "google":
+        process.env.GOOGLE_API_KEY = GOOGLE_API_KEY;
+        return google(modelId as any);
+        
+      case "anthropic":
+        process.env.ANTHROPIC_API_KEY = ANTHROPIC_API_KEY;
+        return anthropic(modelId as any);
+        
+      default:
+        throw new Error(`Provider for model ${modelId} not supported.`);
+    }
+  } finally {
+    // Restore original environment to prevent leaking keys
+    process.env = originalEnv;
   }
 }
 
-// Generate a structured review
+/**
+ * Generate a structured code review with retry logic
+ */
 export async function generateStructuredReview(input: CodeReviewInput): Promise<StructuredReviewOutput> {
   try {
+    // Check if model is available before proceeding
     if (!isModelAvailable(input.model)) {
+      logger.warn(`Requested model ${input.model} is not available`);
       return {
         modelUsed: "None",
         error: `Model ${input.model} is not available or the required API key is not provided.`,
-        availableModels: Object.fromEntries(
-          Object.entries(modelMapping).filter(([id]) => isModelAvailable(id))
-        ),
+        availableModels: getAvailableModels(),
       };
     }
 
+    logger.info(`Generating structured review with model: ${input.model}`);
     const model = getModel(input.model);
     const prompt = createStructuredReviewPrompt(input);
 
-    const result = await generateObject({
-      model,
-      schema: structuredReviewOutputSchema.omit({ modelUsed: true, error: true, availableModels: true }).shape.review,
-      prompt,
-    });
+    // Use retry logic for API requests
+    const result = await pRetry(
+      async () => {
+        return await generateObject({
+          model,
+          schema: structuredReviewOutputSchema.omit({ modelUsed: true, error: true, availableModels: true }).shape.review,
+          prompt,
+        });
+      },
+      {
+        retries: MAX_RETRIES,
+        onFailedAttempt: (error) => {
+          logger.warn(`Structured review attempt failed (${error.attemptNumber}/${MAX_RETRIES + 1}): ${error.message}`);
+        }
+      }
+    );
 
+    logger.info(`Successfully generated structured review with model: ${input.model}`);
     return {
-      review: result.object,
+      review: result.object as Review,
       modelUsed: modelMapping[input.model as keyof typeof modelMapping] || input.model,
     };
   } catch (error) {
+    logger.error(`Error generating structured review: ${(error as Error).message}`, error);
     return {
       modelUsed: "None",
       error: `Error generating review: ${(error as Error).message}`,
-      availableModels: Object.fromEntries(
-        Object.entries(modelMapping).filter(([id]) => isModelAvailable(id))
-      ),
+      availableModels: getAvailableModels(),
     };
   }
 }
 
-// Generate a freeform review
+/**
+ * Generate a freeform code review with retry logic
+ */
 export async function generateFreeformReview(input: CodeReviewInput): Promise<FreeformReviewOutput> {
   try {
+    // Check if model is available before proceeding
     if (!isModelAvailable(input.model)) {
+      logger.warn(`Requested model ${input.model} is not available`);
       return {
         modelUsed: "None",
         error: `Model ${input.model} is not available or the required API key is not provided.`,
-        availableModels: Object.fromEntries(
-          Object.entries(modelMapping).filter(([id]) => isModelAvailable(id))
-        ),
+        availableModels: getAvailableModels(),
       };
     }
 
+    logger.info(`Generating freeform review with model: ${input.model}`);
     const model = getModel(input.model);
     const prompt = createFreeformReviewPrompt(input);
 
-    // Use generateText instead of generateObject for freeform content
-    const { text } = await generateText({
-      model,
-      prompt,
-    });
+    // Use retry logic for API requests
+    const result = await pRetry(
+      async () => {
+        return await generateText({
+          model,
+          prompt,
+        });
+      },
+      {
+        retries: MAX_RETRIES,
+        onFailedAttempt: (error) => {
+          logger.warn(`Freeform review attempt failed (${error.attemptNumber}/${MAX_RETRIES + 1}): ${error.message}`);
+        }
+      }
+    );
 
+    logger.info(`Successfully generated freeform review with model: ${input.model}`);
     return {
-      reviewText: text,
+      reviewText: result.text,
       modelUsed: modelMapping[input.model as keyof typeof modelMapping] || input.model,
     };
   } catch (error) {
+    logger.error(`Error generating freeform review: ${(error as Error).message}`, error);
     return {
       modelUsed: "None",
       error: `Error generating review: ${(error as Error).message}`,
-      availableModels: Object.fromEntries(
-        Object.entries(modelMapping).filter(([id]) => isModelAvailable(id))
-      ),
+      availableModels: getAvailableModels(),
     };
   }
 }
+
+/**
+ * Helper function to get summary information about available providers
+ */
+export function getProviderSummary(): Record<string, any> {
+  return {
+    openai: {
+      available: !!OPENAI_API_KEY,
+      models: modelCategories.openai.filter(model => isModelAvailable(model)),
+    },
+    google: {
+      available: !!GOOGLE_API_KEY,
+      models: modelCategories.google.filter(model => isModelAvailable(model)),
+    },
+    anthropic: {
+      available: !!ANTHROPIC_API_KEY,
+      models: modelCategories.anthropic.filter(model => isModelAvailable(model)),
+    },
+  };
+}
+
+// Import modelCategories for provider summary
+import { modelCategories } from "../config/index.js";

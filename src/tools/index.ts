@@ -1,18 +1,35 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { 
-  codeReviewInputSchema
+  codeReviewInputSchema,
+  listModelsInputSchema
 } from "../schemas/index.js";
-import type { CodeReviewInput } from "../schemas/index.js";
+import type { 
+  CodeReviewInput,
+  ListModelsInput
+} from "../schemas/index.js";
 import { 
   generateStructuredReview, 
-  generateFreeformReview 
+  generateFreeformReview,
+  getProviderSummary
 } from "../utils/ai-providers.js";
-import { getAvailableModels, getDefaultModel, isModelAvailable } from "../config/index.js";
+import { 
+  getAvailableModels, 
+  getDefaultModel, 
+  isModelAvailable,
+  modelMapping,
+  SERVER_NAME,
+  SERVER_VERSION 
+} from "../config/index.js";
 import * as logger from "../utils/logger.js";
 
 /**
- * Helper function to sanitize model IDs in results
- * @param models Object containing model ID keys that may have dots or hyphens
+ * Helper function to sanitize model IDs in results for Claude Desktop compatibility
+ * 
+ * Model IDs often contain dots and hyphens which can cause issues with JSON parsing
+ * in some clients, especially Claude Desktop. This function converts those characters
+ * to underscores for safer JSON handling.
+ * 
+ * @param data Object containing model ID keys that may have dots or hyphens
  * @returns A copy with no special characters in keys
  */
 function sanitizeModelIds(data: Record<string, any>): Record<string, any> {
@@ -39,9 +56,72 @@ function sanitizeModelIds(data: Record<string, any>): Record<string, any> {
 }
 
 /**
+ * Validate input model parameter and suggest alternatives if needed
+ * 
+ * @param input Input parameters containing model selection
+ * @returns Object with validation result and suggested model if needed
+ */
+function validateModelInput(input: CodeReviewInput): { 
+  valid: boolean; 
+  suggestedModel?: string; 
+  error?: string; 
+} {
+  // If model not specified, use default
+  if (!input.model) {
+    const defaultModel = getDefaultModel();
+    logger.info(`No model specified, using default: ${defaultModel}`);
+    return { 
+      valid: true,
+      suggestedModel: defaultModel
+    };
+  }
+
+  // Check if model is available
+  if (!isModelAvailable(input.model)) {
+    logger.warn(`Requested model ${input.model} is not available`);
+    
+    // Try to suggest an alternative model
+    try {
+      const suggestedModel = getDefaultModel();
+      return {
+        valid: false,
+        suggestedModel,
+        error: `Model "${input.model}" is not available. Try using "${suggestedModel}" instead.`
+      };
+    } catch (error) {
+      // No suitable alternative
+      return {
+        valid: false,
+        error: `Model "${input.model}" is not available and no alternative models are available. Please provide a valid API key.`
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Log code review request details (safely, without exposing full code)
+ * 
+ * @param type Type of review (structured or freeform)
+ * @param input Input parameters
+ */
+function logReviewRequest(type: string, input: CodeReviewInput): void {
+  logger.info(`Received request for ${type} code review`, { 
+    modelRequested: input.model,
+    filename: input.filename || "(no filename provided)",
+    language: input.language || "(no language specified)",
+    codeLength: input.code.length,
+    hasProjectContext: !!input.projectContext,
+    relatedFileCount: input.projectContext?.relatedFiles?.length || 0
+  });
+}
+
+/**
  * Register all MCP tools for the code review server
  */
 export function registerTools(server: McpServer): void {
+  // Register the three required tools specified in requirements
   registerReviewCodeStructuredTool(server);
   registerReviewCodeFreeformTool(server);
   registerListModelsTool(server);
@@ -51,56 +131,55 @@ export function registerTools(server: McpServer): void {
  * Register the structured code review tool
  */
 function registerReviewCodeStructuredTool(server: McpServer): void {
-  // Use the schema from our definitions
+  // Use the schema from our Zod definitions
   const parameters = codeReviewInputSchema.shape;
 
   server.tool(
     "reviewCodeStructured",
     parameters,
     async (input: CodeReviewInput) => {
-      logger.info("Received request for structured code review", { 
-        modelRequested: input.model,
-        filename: input.filename,
-        language: input.language,
-        codeLength: input.code.length
-      });
+      // Log request (safely)
+      logReviewRequest("structured", input);
 
       try {
-        // If model not specified, use default
-        if (!input.model) {
-          input.model = getDefaultModel();
-          logger.info(`No model specified, using default: ${input.model}`);
-        }
-
-        // Check if model is available
-        if (!isModelAvailable(input.model)) {
-          logger.warn(`Requested model ${input.model} is not available`);
+        // Validate model selection
+        const validation = validateModelInput(input);
+        
+        if (!validation.valid) {
           const availableModels = getAvailableModels();
           
-          return {
+          return sanitizeModelIds({
             modelUsed: "None",
-            error: `Model ${input.model} is not available or the required API key is not provided.`,
-            availableModels: sanitizeModelIds({availableModels}).availableModels
-          };
+            error: validation.error,
+            suggestedModel: validation.suggestedModel,
+            availableModels
+          });
         }
 
-        // Generate the review
+        // Use suggested model if provided
+        if (validation.suggestedModel) {
+          input.model = validation.suggestedModel;
+        }
+
+        // Generate the structured review
         const result = await generateStructuredReview(input);
         
         logger.info("Successfully generated structured review", {
-          modelUsed: result.modelUsed
+          modelUsed: result.modelUsed,
+          hasReview: !!result.review
         });
 
-        // Return the review result directly - MCP SDK will handle serialization
+        // Return the review result with sanitized model IDs for compatibility
         return sanitizeModelIds(result);
       } catch (error) {
         logger.error("Error in reviewCodeStructured tool", error);
         const availableModels = getAvailableModels();
-        return {
+        
+        return sanitizeModelIds({
           modelUsed: "None",
           error: `Error generating review: ${(error as Error).message}`,
-          availableModels: sanitizeModelIds({availableModels}).availableModels
-        };
+          availableModels
+        });
       }
     }
   );
@@ -110,56 +189,56 @@ function registerReviewCodeStructuredTool(server: McpServer): void {
  * Register the freeform code review tool
  */
 function registerReviewCodeFreeformTool(server: McpServer): void {
-  // Use the schema from our definitions
+  // Use the schema from our Zod definitions
   const parameters = codeReviewInputSchema.shape;
 
   server.tool(
     "reviewCodeFreeform",
     parameters,
     async (input: CodeReviewInput) => {
-      logger.info("Received request for freeform code review", { 
-        modelRequested: input.model,
-        filename: input.filename,
-        language: input.language,
-        codeLength: input.code.length
-      });
+      // Log request (safely)
+      logReviewRequest("freeform", input);
 
       try {
-        // If model not specified, use default
-        if (!input.model) {
-          input.model = getDefaultModel();
-          logger.info(`No model specified, using default: ${input.model}`);
-        }
-
-        // Check if model is available
-        if (!isModelAvailable(input.model)) {
-          logger.warn(`Requested model ${input.model} is not available`);
+        // Validate model selection
+        const validation = validateModelInput(input);
+        
+        if (!validation.valid) {
           const availableModels = getAvailableModels();
           
-          return {
+          return sanitizeModelIds({
             modelUsed: "None",
-            error: `Model ${input.model} is not available or the required API key is not provided.`,
-            availableModels: sanitizeModelIds({availableModels}).availableModels
-          };
+            error: validation.error,
+            suggestedModel: validation.suggestedModel,
+            availableModels
+          });
         }
 
-        // Generate the review
+        // Use suggested model if provided
+        if (validation.suggestedModel) {
+          input.model = validation.suggestedModel;
+        }
+
+        // Generate the freeform review
         const result = await generateFreeformReview(input);
         
         logger.info("Successfully generated freeform review", {
-          modelUsed: result.modelUsed
+          modelUsed: result.modelUsed,
+          hasReviewText: !!result.reviewText,
+          reviewTextLength: result.reviewText?.length || 0
         });
 
-        // Return the review result directly - MCP SDK will handle serialization
+        // Return the review result with sanitized model IDs for compatibility
         return sanitizeModelIds(result);
       } catch (error) {
         logger.error("Error in reviewCodeFreeform tool", error);
         const availableModels = getAvailableModels();
-        return {
+        
+        return sanitizeModelIds({
           modelUsed: "None",
           error: `Error generating review: ${(error as Error).message}`,
-          availableModels: sanitizeModelIds({availableModels}).availableModels
-        };
+          availableModels
+        });
       }
     }
   );
@@ -171,20 +250,34 @@ function registerReviewCodeFreeformTool(server: McpServer): void {
 function registerListModelsTool(server: McpServer): void {
   server.tool(
     "listModels",
-    {}, // Empty parameters object
-    async () => {
+    listModelsInputSchema.shape, // Empty Zod object
+    async (_input: ListModelsInput) => {
       logger.info("Received request to list available models");
 
       try {
         const availableModels = getAvailableModels();
+        const providerSummary = getProviderSummary();
         
-        // Return the models directly - MCP SDK will handle serialization
-        return {
-          availableModels: sanitizeModelIds({availableModels}).availableModels,
-          modelUsed: "None"
-        };
+        logger.info("Listing available models", {
+          modelCount: Object.keys(availableModels).length,
+          providers: Object.keys(providerSummary)
+            .filter(provider => providerSummary[provider].available)
+            .join(", ")
+        });
+
+        // Return the models with sanitized IDs for compatibility
+        return sanitizeModelIds({
+          availableModels,
+          modelUsed: "None",
+          serverInfo: {
+            name: SERVER_NAME,
+            version: SERVER_VERSION,
+            providers: providerSummary
+          }
+        });
       } catch (error) {
         logger.error("Error in listModels tool", error);
+        
         return {
           availableModels: {},
           modelUsed: "None",

@@ -1,12 +1,14 @@
 # claude-code-review-mcp
 
-An MCP (Model Context Protocol) server that provides code review functionality using OpenAI and Google models. It serves as a "second opinion" tool for code review that can be used with any MCP client, including Claude Code, Claude Desktop, Cursor, and Windsurf.
+An MCP (Model Context Protocol) server that provides code review functionality using OpenAI, Google, and Anthropic models. It serves as a "second opinion" tool for code review that can be used with any MCP client, including Claude Code, Claude Desktop, Cursor, and Windsurf.
 
 ## Features
 
-- **Multiple LLM Support**: Leverages both OpenAI and Google's Gemini models for code reviews
+- **Multi-Provider Support**: Leverages OpenAI, Google's Gemini, and Anthropic's Claude models for code reviews
 - **Two Review Types**: Choose between structured review (with categorized feedback) or freeform narrative review
 - **Context-Aware**: Include project structure, related files, commit messages, and dependencies for more relevant reviews
+- **Intelligent Code Processing**: Automatically detects programming languages, handles large files, and formats output appropriately
+- **Robust Error Handling**: Includes retry logic for API failures and graceful error recovery
 - **MCP Compatible**: Works with any MCP client (Claude Code, Claude Desktop, Cursor, Windsurf)
 - **Easy Setup**: Simple configuration via environment variables
 
@@ -31,8 +33,11 @@ OPENAI_API_KEY=<key> npx -y claude-code-review-mcp
 # Or with Google API key
 GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
 
-# Or use both API keys
-OPENAI_API_KEY=<key> GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
+# Or with Anthropic API key
+ANTHROPIC_API_KEY=<key> npx -y claude-code-review-mcp
+
+# Or use multiple API keys for more model options
+OPENAI_API_KEY=<key> GOOGLE_API_KEY=<key> ANTHROPIC_API_KEY=<key> npx -y claude-code-review-mcp
 ```
 
 ## Configuration
@@ -41,6 +46,7 @@ The server requires at least one of the following API keys:
 
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `GOOGLE_API_KEY`: Your Google Gemini API key
+- `ANTHROPIC_API_KEY`: Your Anthropic API key
 
 Optional configuration:
 
@@ -60,6 +66,12 @@ Optional configuration:
 
 - `gemini-2.5-pro-preview-05-06` - Google Gemini 2.5 Pro
 - `gemini-2.5-flash-preview-04-17` - Google Gemini 2.5 Flash
+
+### Anthropic Models (requires ANTHROPIC_API_KEY)
+
+- `claude-3-opus-20240229` - Anthropic Claude 3 Opus
+- `claude-3-sonnet-20240229` - Anthropic Claude 3 Sonnet
+- `claude-3-haiku-20240307` - Anthropic Claude 3 Haiku
 
 ## Available Tools
 
@@ -89,11 +101,12 @@ To add this MCP server to Claude Code:
 
 ```bash
 # Use environment variables properly (recommended approach)
-claude mcp add code-review -s user -e OPENAI_API_KEY=<key> -e GOOGLE_API_KEY=<key> -- npx -y claude-code-review-mcp
+claude mcp add code-review -s user -e OPENAI_API_KEY=<key> -e GOOGLE_API_KEY=<key> -e ANTHROPIC_API_KEY=<key> -- npx -y claude-code-review-mcp
 
 # Alternative: Export the variables before adding the MCP
 export OPENAI_API_KEY=<key>
 export GOOGLE_API_KEY=<key>
+export ANTHROPIC_API_KEY=<key>
 claude mcp add code-review -s user -- npx -y claude-code-review-mcp
 ```
 
@@ -359,9 +372,14 @@ OPENAI_API_KEY=<key> npx -y claude-code-review-mcp
 export GOOGLE_API_KEY=<key>
 npx -y claude-code-review-mcp
 
-# Use both API keys for more model options
+# Start with Anthropic Claude API key
+export ANTHROPIC_API_KEY=<key>
+npx -y claude-code-review-mcp
+
+# Use multiple API keys for more model options
 export OPENAI_API_KEY=<key>
 export GOOGLE_API_KEY=<key>
+export ANTHROPIC_API_KEY=<key>
 npx -y claude-code-review-mcp
 
 # Use custom port and host
@@ -470,12 +488,13 @@ In Claude Desktop settings, configure the MCP as follows:
   "args": ["-y", "claude-code-review-mcp"],
   "env": {
     "OPENAI_API_KEY": "your-openai-key",
-    "GOOGLE_API_KEY": "your-google-key"
+    "GOOGLE_API_KEY": "your-google-key",
+    "ANTHROPIC_API_KEY": "your-anthropic-key"
   }
 }
 ```
 
-The server uses a combination of MCP SDK features and a custom JSON-safe proxy specifically for Claude Desktop. This ensures compatibility with all MCP clients, including Claude Desktop which requires special handling of certain JSON patterns.
+The server uses advanced JSON output sanitization for full compatibility with all MCP clients, including Claude Desktop.
 
 ### Cursor and Windsurf
 
@@ -486,7 +505,8 @@ Follow the specific MCP configuration guidelines for your client, using the same
 ### API Key Issues
 
 - **"Model X is not available"**: Ensure you've provided the appropriate API key for the model.
-- **No API keys provided**: You must provide at least one of OPENAI_API_KEY or GOOGLE_API_KEY.
+- **No API keys provided**: You must provide at least one of OPENAI_API_KEY, GOOGLE_API_KEY, or ANTHROPIC_API_KEY.
+- **Suggested model**: The server will suggest alternative models if your requested model is not available.
 
 ### Rate Limiting and API Errors
 
@@ -498,12 +518,16 @@ Follow the specific MCP configuration guidelines for your client, using the same
 - API keys are never logged or exposed
 - Code contents are minimally logged for privacy
 - Dependencies are kept minimal to reduce security surface
+- Request handling includes input validation and sanitization
+- Error messages are designed to avoid leaking sensitive information
 
 ## Compatibility
 
 - Requires Node.js 18.0.0 or later
 - Works on Linux, macOS, and Windows (via WSL if necessary)
-- Compatible with all MCP clients
+- Compatible with all MCP clients (Claude Code, Claude Desktop, Cursor, Windsurf)
+- Graceful handling of large code files and project contexts
+- Automatic retry mechanism for transient API failures
 
 ## Development
 
