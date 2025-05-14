@@ -81,7 +81,7 @@ Lists all available models based on provided API keys, including model IDs and h
 To add this MCP server to Claude Code:
 
 ```bash
-claude mcp add code-review -- npx -y claude-code-review-mcp
+claude mcp add code-review -- OPENAI_API_KEY=<key> GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
 ```
 
 You can also create a custom slash command by creating a file at `.claude/commands/review-with.md`:
