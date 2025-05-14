@@ -25,7 +25,7 @@ export const HOST = getEnv('HOST') || "127.0.0.1";
 export const LOG_LEVEL = getEnv('LOG_LEVEL') ? parseInt(getEnv('LOG_LEVEL') || '1', 10) : 1;
 
 // Server version and name
-export const SERVER_VERSION = "0.10.2";
+export const SERVER_VERSION = "0.10.3";
 export const SERVER_NAME = "claude-code-review-mcp";
 
 // Model Mapping - maps model IDs to human-readable names
