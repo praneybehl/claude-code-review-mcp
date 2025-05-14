@@ -494,7 +494,27 @@ In Claude Desktop settings, configure the MCP as follows:
 }
 ```
 
-The server uses advanced JSON output sanitization for full compatibility with all MCP clients, including Claude Desktop.
+### MCP Inspector
+
+For using with the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector), use the specialized compatibility wrapper which fixes JSON-RPC formatting issues:
+
+```bash
+# Start the MCP server with Inspector compatibility
+npx -y claude-code-review-mcp-inspector
+
+# Or with environment variables
+OPENAI_API_KEY=<key> npx -y claude-code-review-mcp-inspector
+```
+
+When integrating with Claude Code, use:
+
+```bash
+claude mcp add code-review -s user npx -y claude-code-review-mcp-inspector
+```
+
+The wrapper specifically addresses JSON parsing issues that can occur with the MCP Inspector by providing an additional compatibility layer.
+
+The server uses advanced JSON output sanitization for full compatibility with all MCP clients, including Claude Desktop and MCP Inspector.
 
 ### Cursor and Windsurf
 
@@ -507,6 +527,17 @@ Follow the specific MCP configuration guidelines for your client, using the same
 - **"Model X is not available"**: Ensure you've provided the appropriate API key for the model.
 - **No API keys provided**: You must provide at least one of OPENAI_API_KEY, GOOGLE_API_KEY, or ANTHROPIC_API_KEY.
 - **Suggested model**: The server will suggest alternative models if your requested model is not available.
+
+### JSON Parsing Errors with MCP Inspector
+
+If you encounter JSON parsing errors when connecting to the MCP server through MCP Inspector (common error: "SyntaxError: Unexpected token at position 5"), use the specialized Inspector compatibility wrapper:
+
+```bash
+# Instead of standard MCP server
+npx -y claude-code-review-mcp-inspector
+```
+
+This wrapper specifically fixes JSON formatting issues that can occur in the communication between the MCP Inspector and our server.
 
 ### Rate Limiting and API Errors
 
