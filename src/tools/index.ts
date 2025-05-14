@@ -17,10 +17,11 @@ import {
   getDefaultModel, 
   isModelAvailable,
   modelMapping,
-  SERVER_NAME,
+  SERVER_NAME, 
   SERVER_VERSION 
 } from "../config/index.js";
 import * as logger from "../utils/logger.js";
+import { sanitizeJson } from "../utils/json-safe.js";
 
 /**
  * Helper function to sanitize model IDs in results for Claude Desktop compatibility
@@ -53,6 +54,26 @@ function sanitizeModelIds(data: Record<string, any>): Record<string, any> {
   }
   
   return data;
+}
+
+/**
+ * Fully sanitize data for maximum compatibility with all MCP clients
+ * This combines model ID sanitization with JSON format sanitization
+ */
+function fullySanitize(data: Record<string, any>): Record<string, any> {
+  try {
+    // First sanitize model IDs
+    const modelSanitized = sanitizeModelIds(data);
+    
+    // Then apply JSON sanitization (stringify and re-parse through our sanitizer)
+    const jsonSanitized = JSON.parse(sanitizeJson(JSON.stringify(modelSanitized)));
+    
+    return jsonSanitized;
+  } catch (error) {
+    logger.error("Error during full sanitization:", error);
+    // Return the original data if sanitization fails
+    return data;
+  }
 }
 
 /**
@@ -148,7 +169,7 @@ function registerReviewCodeStructuredTool(server: McpServer): void {
         if (!validation.valid) {
           const availableModels = getAvailableModels();
           
-          return sanitizeModelIds({
+          return fullySanitize({
             modelUsed: "None",
             error: validation.error,
             suggestedModel: validation.suggestedModel,
@@ -169,13 +190,13 @@ function registerReviewCodeStructuredTool(server: McpServer): void {
           hasReview: !!result.review
         });
 
-        // Return the review result with sanitized model IDs for compatibility
-        return sanitizeModelIds(result);
+        // Return the fully sanitized result for maximum compatibility
+        return fullySanitize(result);
       } catch (error) {
         logger.error("Error in reviewCodeStructured tool", error);
         const availableModels = getAvailableModels();
         
-        return sanitizeModelIds({
+        return fullySanitize({
           modelUsed: "None",
           error: `Error generating review: ${(error as Error).message}`,
           availableModels
@@ -206,7 +227,7 @@ function registerReviewCodeFreeformTool(server: McpServer): void {
         if (!validation.valid) {
           const availableModels = getAvailableModels();
           
-          return sanitizeModelIds({
+          return fullySanitize({
             modelUsed: "None",
             error: validation.error,
             suggestedModel: validation.suggestedModel,
@@ -228,13 +249,13 @@ function registerReviewCodeFreeformTool(server: McpServer): void {
           reviewTextLength: result.reviewText?.length || 0
         });
 
-        // Return the review result with sanitized model IDs for compatibility
-        return sanitizeModelIds(result);
+        // Return the fully sanitized result for maximum compatibility
+        return fullySanitize(result);
       } catch (error) {
         logger.error("Error in reviewCodeFreeform tool", error);
         const availableModels = getAvailableModels();
         
-        return sanitizeModelIds({
+        return fullySanitize({
           modelUsed: "None",
           error: `Error generating review: ${(error as Error).message}`,
           availableModels
@@ -265,8 +286,8 @@ function registerListModelsTool(server: McpServer): void {
             .join(", ")
         });
 
-        // Return the models with sanitized IDs for compatibility
-        return sanitizeModelIds({
+        // Return the fully sanitized result for maximum compatibility
+        return fullySanitize({
           availableModels,
           modelUsed: "None",
           serverInfo: {
@@ -278,11 +299,11 @@ function registerListModelsTool(server: McpServer): void {
       } catch (error) {
         logger.error("Error in listModels tool", error);
         
-        return {
+        return fullySanitize({
           availableModels: {},
           modelUsed: "None",
           error: `Error listing models: ${(error as Error).message}`
-        };
+        });
       }
     }
   );

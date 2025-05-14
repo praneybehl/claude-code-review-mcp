@@ -1,11 +1,11 @@
 {
   "name": "claude-code-review-mcp",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "An MCP server for code reviews using OpenAI, Google, and Anthropic models",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "claude-code-review-mcp": "./dist/index.js"
+    "claude-code-review-mcp": "./dist/cli.js"
   },
   "keywords": [
     "mcp",
@@ -39,8 +39,9 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && chmod +x dist/index.js",
+    "build": "tsc && chmod +x dist/index.js && chmod +x dist/cli.js",
     "start": "node dist/index.js",
+    "cli": "node dist/cli.js",
     "prepublishOnly": "rm -rf dist && npm run build"
   },
   "dependencies": {
