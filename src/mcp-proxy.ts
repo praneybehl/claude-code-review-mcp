@@ -10,6 +10,117 @@ import { createServer as createNetServer, createConnection, Socket } from 'node:
 import * as logger from './utils/logger.js';
 
 /**
+ * Safely parse and re-format JSON to guarantee valid format
+ * @param text Text that may contain JSON
+ * @returns Sanitized text with valid JSON
+ */
+function ensureValidJson(text: string): string {
+  // If no JSON-like content, return as is
+  if (!text.includes('{') && !text.includes('[')) {
+    return text;
+  }
+
+  // Attempt to extract and fix JSON objects
+  try {
+    // First, attempt to parse the entire string as JSON
+    try {
+      JSON.parse(text);
+      return text; // It's already valid JSON
+    } catch (e) {
+      // Not valid JSON, continue with extraction
+    }
+
+    // Find all potential JSON objects within the text
+    let result = text;
+    
+    // Match potential JSON objects
+    const matches = result.match(/({[^{}]*(?:{[^{}]*}[^{}]*)*})/g) || [];
+    
+    // Process each potential JSON object
+    for (const match of matches) {
+      try {
+        // Try to parse and pretty print to ensure valid JSON
+        const parsedObj = JSON.parse(match);
+        // Replace with guaranteed valid JSON
+        const validJson = JSON.stringify(parsedObj);
+        // Replace the original match with the valid JSON
+        result = result.replace(match, validJson);
+      } catch (err) {
+        // If we can't parse it, try to repair common issues
+        let fixedJson = match;
+        
+        // Fix arrays with space between bracket and first element
+        fixedJson = fixedJson.replace(/\[\s+/g, '[');
+        
+        // Fix missing commas in arrays
+        fixedJson = fixedJson.replace(/"\s+"/g, '","');
+        fixedJson = fixedJson.replace(/"\s+{/g, '",{');
+        fixedJson = fixedJson.replace(/}\s+"/g, '},"');
+        fixedJson = fixedJson.replace(/]\s+{/g, '],{');
+        fixedJson = fixedJson.replace(/}\s+\[/g, '},[');
+        
+        // Replace model IDs with dots/hyphens with underscored versions
+        fixedJson = fixedJson.replace(/"(gemini-[0-9.-]+)"/g, '"gemini_$1"');
+        fixedJson = fixedJson.replace(/"(gpt-[0-9.-]+)"/g, '"gpt_$1"');
+        
+        try {
+          // See if our fixes helped
+          const parsed = JSON.parse(fixedJson);
+          result = result.replace(match, JSON.stringify(parsed));
+        } catch (fixErr) {
+          // Failed to fix, maintain original
+          logger.error('Failed to fix JSON:', fixErr);
+        }
+      }
+    }
+    
+    // Match potential JSON arrays
+    const arrayMatches = result.match(/(\[[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*\])/g) || [];
+    
+    // Process each potential JSON array
+    for (const match of arrayMatches) {
+      try {
+        // Try to parse and pretty print to ensure valid JSON
+        const parsedArray = JSON.parse(match);
+        // Replace with guaranteed valid JSON
+        const validJson = JSON.stringify(parsedArray);
+        // Replace the original match with the valid JSON
+        result = result.replace(match, validJson);
+      } catch (err) {
+        // If we can't parse it, try to repair common issues
+        let fixedJson = match;
+        
+        // Fix arrays with extra spaces
+        fixedJson = fixedJson.replace(/\[\s+/g, '[');
+        fixedJson = fixedJson.replace(/\s+\]/g, ']');
+        
+        // Fix missing commas in arrays
+        fixedJson = fixedJson.replace(/"\s+"/g, '","');
+        fixedJson = fixedJson.replace(/"\s+{/g, '",{');
+        
+        try {
+          // See if our fixes helped
+          const parsed = JSON.parse(fixedJson);
+          result = result.replace(match, JSON.stringify(parsed));
+        } catch (fixErr) {
+          // Failed to fix this array
+          logger.error('Failed to fix JSON array:', fixErr);
+        }
+      }
+    }
+    
+    // Apply additional global fixes
+    // Fix JSON-RPC messages that might appear back-to-back
+    result = result.replace(/}{/g, '}\n{');
+    
+    return result;
+  } catch (err) {
+    logger.error('Error in ensureValidJson:', err);
+    return text; // Return original on error
+  }
+}
+
+/**
  * Start a simple TCP socket proxy specifically designed for Claude Desktop
  * 
  * @param targetPort The port of our actual MCP server
@@ -52,24 +163,12 @@ export async function startProxy(targetPort: number, targetHost: string): Promis
           // Add to buffer - we need to handle potential fragmentation
           responseBuffer += responseText;
           
-          // Check if the buffer contains a complete JSON-RPC message
-          if (responseBuffer.includes('"jsonrpc":') || responseBuffer.includes('"content":')) {
+          // Check if the buffer contains a complete JSON message
+          if (responseBuffer.includes('{') || responseBuffer.includes('[')) {
             logger.info('Processing response with potential JSON');
             
-            // Replace problematic sequences that cause Claude Desktop to fail
-            let sanitizedResponse = responseBuffer;
-            
-            // Fix JSON array issues - Claude Desktop has trouble with certain array formats
-            // Specifically target the JSON parsing error seen in logs
-            sanitizedResponse = sanitizedResponse.replace(/\[\s*"([^"]+)"\s*,/g, '["$1",');
-            sanitizedResponse = sanitizedResponse.replace(/\[\s*'([^']+)'\s*,/g, '["$1",');
-            
-            // Fix unexpected non-whitespace issues after JSON
-            sanitizedResponse = sanitizedResponse.replace(/}\s*{/g, '}\n{');
-            
-            // Ensure all model IDs use underscores instead of dots/hyphens
-            sanitizedResponse = sanitizedResponse.replace(/"(gemini-[0-9.-]+)"/g, '"gemini_$1"');
-            sanitizedResponse = sanitizedResponse.replace(/"(gpt-[0-9.-]+)"/g, '"gpt_$1"');
+            // Ensure valid JSON in the response
+            const sanitizedResponse = ensureValidJson(responseBuffer);
             
             // Clear the buffer after processing
             responseBuffer = '';
@@ -80,7 +179,7 @@ export async function startProxy(targetPort: number, targetHost: string): Promis
           }
           
           // If the current chunk doesn't look like JSON, pass through as-is
-          if (!responseText.includes('"jsonrpc":') && !responseText.includes('"content":')) {
+          if (!responseText.includes('{') && !responseText.includes('[')) {
             // This chunk has no JSON markers, send it directly
             clientSocket.write(data);
             responseBuffer = ''; // Clear buffer for non-JSON data
