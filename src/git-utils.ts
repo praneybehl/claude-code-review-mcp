@@ -1,5 +1,5 @@
 import { execSync, ExecSyncOptionsWithStringEncoding } from "child_process";
-import { ReviewTarget } from "./config.js"; // Ensure .js for ESM NodeNext
+import { ReviewTarget, isDebugMode } from "./config.js"; // Ensure .js for ESM NodeNext
 
 export function getGitDiff(target: ReviewTarget, baseBranch?: string): string {
   const execOptions: ExecSyncOptionsWithStringEncoding = {
@@ -50,7 +50,6 @@ export function getGitDiff(target: ReviewTarget, baseBranch?: string): string {
         }
         // Fetch the base branch to ensure the diff is against the latest version of it
         // Use --no-tags to avoid fetching unnecessary data
-        // Redirect stderr to /dev/null (or NUL on windows) to suppress verbose fetch output if not an error
         const fetchCommand = `git fetch origin ${sanitizedBaseBranch}:${sanitizedBaseBranch} --no-tags --quiet`;
         try {
           execSync(fetchCommand, execOptions);
@@ -67,13 +66,19 @@ export function getGitDiff(target: ReviewTarget, baseBranch?: string): string {
         throw new Error(`Unsupported git diff target: ${target}`);
     }
 
-    console.log(`[MCP Server Git] Executing: ${command}`);
+    // Only log the command if in debug mode
+    if (isDebugMode()) {
+      console.log(`[MCP Server Git] Executing: ${command}`);
+    }
+    
+    // Execute the command and ensure we have a string result
     const diffOutput = execSync(command, execOptions);
+    const diffString = diffOutput.toString();
 
-    if (!diffOutput.trim()) {
+    if (!diffString.trim()) {
       return "No changes found for the specified target.";
     }
-    return diffOutput;
+    return diffString;
   } catch (error: any) {
     const errorMessage =
       error.stderr?.toString().trim() || error.message || "Unknown git error";
@@ -83,12 +88,17 @@ export function getGitDiff(target: ReviewTarget, baseBranch?: string): string {
       }):`
     );
     console.error(`[MCP Server Git] Command: ${command || "N/A"}`);
-    console.error(
-      `[MCP Server Git] Stderr: ${error.stderr?.toString().trim()}`
-    );
-    console.error(
-      `[MCP Server Git] Stdout: ${error.stdout?.toString().trim()}`
-    );
+    
+    // Only log the full error details in debug mode
+    if (isDebugMode()) {
+      console.error(
+        `[MCP Server Git] Stderr: ${error.stderr?.toString().trim()}`
+      );
+      console.error(
+        `[MCP Server Git] Stdout: ${error.stdout?.toString().trim()}`
+      );
+    }
+    
     throw new Error(
       `Failed to get git diff. Git error: ${errorMessage}. Ensure you are in a git repository and the target/base is valid.`
     );

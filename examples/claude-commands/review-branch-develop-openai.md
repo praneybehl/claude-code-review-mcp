@@ -1,4 +1,4 @@
-Perform a code review of changes between the develop branch and the current HEAD using OpenAI's **o1-mini**.
+Perform a code review of changes between the develop branch and the current HEAD using OpenAI's **O4-mini**.
 
 Use the 'perform_code_review' tool (from the 'code-reviewer' MCP server) with the following parameters:
 target: "branch_diff"

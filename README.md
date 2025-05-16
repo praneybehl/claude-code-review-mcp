@@ -15,12 +15,18 @@ It analyzes `git diff` output for staged changes, differences from HEAD, or diff
 -   Designed to be run from the root of any Git repository you wish to analyze.
 -   Easily installable and runnable via `npx` for immediate use.
 
+## Compatibility
+
+-   **Node.js**: Version 18 or higher is required.
+-   **Operating Systems**: Works on Windows, macOS, and Linux.
+-   **Git**: Version 2.20.0 or higher recommended.
+
 ## Prerequisites
 
--   **Node.js**: Version 18 or higher is recommended.
+-   **Node.js**: Version 18 or higher is required.
 -   **Git**: Must be installed and accessible in your system's PATH. The server executes `git` commands.
 -   **API Keys for LLMs**: You need API keys for the LLM providers you intend to use. These should be set as environment variables:
-    -   `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) for Google models.
+    -   `GOOGLE_API_KEY` for Google models.
     -   `OPENAI_API_KEY` for OpenAI models.
     -   `ANTHROPIC_API_KEY` for Anthropic models.
     These can be set globally in your environment or, conveniently, in a `.env` file placed in the root of the project you are currently reviewing. The server will automatically try to load it.
@@ -92,6 +98,12 @@ Once the `claude-code-review-mcp` server is running (ideally via `npx` from your
 
     No additional arguments needed! Claude will understand what you're currently working on and use that as context for the review.
 
+    For commands that require arguments (like `review-branch-custom-gemini.md` which uses a custom branch name), you can pass them directly after the command:
+    ```
+    claude > /project:review-branch-custom-gemini main
+    ```
+    This will pass "main" as the $ARGUMENTS_BASE_BRANCH parameter.
+
 ## Tool Provided by this MCP Server
 
 ### `perform_code_review`
@@ -114,11 +126,11 @@ The tool expects parameters matching the `CodeReviewToolParamsSchema`:
     The Large Language Model provider to use for the review.
 -   `modelName` (string):
     The specific model name from the chosen provider. Examples:
-    -   Google: `'gemini-2.5-pro-preview-05-06'`, `'gemini-2.0-flash'`, `'gemini-1.5-pro-latest'`, `'gemini-1.5-flash'`
+    -   Google: `'gemini-2.5-pro-preview-05-06'`, `'gemini-2.5-flash-preview-04-17'`
         *(Ref: https://ai-sdk.dev/providers/ai-sdk-providers/google-generative-ai#model-capabilities)*
-    -   OpenAI: `'gpt-4.1'`, `'gpt-4o'`, `'gpt-4o-mini'`, `'o1-mini'`, `'o3'`
+    -   OpenAI: `'o4-mini'`, `'gpt-4.1'`, `'gpt-4.1-mini'`, `'o3'`
         *(Ref: https://ai-sdk.dev/providers/ai-sdk-providers/openai#model-capabilities)*
-    -   Anthropic: `'claude-3-7-sonnet-20250219'`, `'claude-3-5-sonnet-20241022'`, `'claude-3-5-haiku-20241022'`, `'claude-3-opus-20240229'`
+    -   Anthropic: `'claude-3-7-sonnet-20250219'`, `'claude-3-5-sonnet-20241022'`
         *(Ref: https://ai-sdk.dev/providers/ai-sdk-providers/anthropic#model-capabilities)*
     Ensure the model selected is available via the Vercel AI SDK and your API key has access.
 -   `reviewFocus` (string, optional but recommended):
@@ -140,7 +152,7 @@ For the LLM integration to work, the `claude-code-review-mcp` server (the proces
 Set these in your shell environment or place them in a `.env` file in the **root directory of the project you are reviewing**:
 
 -   **For Google Models:**
-    `GOOGLE_GENERATIVE_AI_API_KEY="your_google_api_key"`
+    `GOOGLE_API_KEY="your_google_api_key"`
 
 -   **For OpenAI Models:**
     `OPENAI_API_KEY="your_openai_api_key"`
@@ -159,17 +171,17 @@ The package includes several improved slash commands in the `examples/claude-com
 | Command File | Description |
 |--------------|-------------|
 | `review-staged-claude.md` | Reviews staged changes using Claude 3.5 Sonnet |
-| `review-staged-openai.md` | Reviews staged changes using OpenAI GPT-4o |
+| `review-staged-openai.md` | Reviews staged changes using OpenAI GPT-4.1 |
 | `review-staged-gemini.md` | Reviews staged changes using Google Gemini 2.5 Pro |
 | `review-head-claude.md` | Reviews all uncommitted changes using Claude 3.7 Sonnet |
-| `review-head-openai.md` | Reviews all uncommitted changes using OpenAI GPT-4.1 |
-| `review-head-gemini.md` | Reviews all uncommitted changes using Google Gemini 1.5 Pro |
-| `review-branch-main-claude.md` | Reviews changes from main branch using Claude 3 Opus |
-| `review-branch-develop-openai.md` | Reviews changes from develop branch using OpenAI o1-mini |
-| `review-branch-custom-gemini.md` | Reviews changes from a specified branch using Google Gemini 2.0 Flash |
-| `review-staged-security-claude.md` | Security-focused review of staged changes using Claude 3.5 Haiku |
-| `review-staged-performance-openai.md` | Performance-focused review of staged changes using OpenAI o3 |
-| `review-staged-maintainability-gemini.md` | Maintainability-focused review of staged changes using Google Gemini 1.5 Flash |
+| `review-head-openai.md` | Reviews all uncommitted changes using OpenAI O3 |
+| `review-head-gemini.md` | Reviews all uncommitted changes using Google Gemini 2.5 Pro |
+| `review-branch-main-claude.md` | Reviews changes from main branch using Claude 3.7 Sonnet |
+| `review-branch-develop-openai.md` | Reviews changes from develop branch using OpenAI O4-mini |
+| `review-branch-custom-gemini.md` | Reviews changes from a specified branch using Google Gemini 2.5 Flash |
+| `review-staged-security-claude.md` | Security-focused review of staged changes using Claude 3.5 Sonnet |
+| `review-staged-performance-openai.md` | Performance-focused review of staged changes using OpenAI O3 |
+| `review-staged-maintainability-gemini.md` | Maintainability-focused review of staged changes using Google Gemini 2.5 Flash |
 
 To use these commands:
 
@@ -177,6 +189,19 @@ To use these commands:
 2. Invoke the command in Claude Code with `/project:command-name` (e.g., `/project:review-staged-claude`)
 
 These commands automatically use Claude's knowledge of your current task and project context, eliminating the need for lengthy manual arguments.
+
+## Security Considerations
+
+- **API Key Handling**: API keys for LLM providers are sensitive credentials. This tool accesses them from environment variables or `.env` files, but does not store or transmit them beyond the necessary API calls. Consider using a secure environment variable manager for production environments.
+  
+- **Git Repository Analysis**: The tool analyzes your local Git repository contents. It executes Git commands and reads diff output, but does not transmit your entire codebase to the LLM - only the specific changes being reviewed.
+  
+- **Code Privacy**: When sending code for review to external LLM providers, be mindful of:
+  - Sensitive information in code comments or strings
+  - Proprietary algorithms or trade secrets
+  - Authentication credentials or API keys in config files
+  
+- **Branch Name Sanitization**: To prevent command injection, branch names are sanitized before being used in Git commands. However, it's still good practice to avoid using unusual characters in branch names.
 
 ## Development (for the `claude-code-review-mcp` package itself)
 

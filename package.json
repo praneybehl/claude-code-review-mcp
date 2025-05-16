@@ -9,9 +9,11 @@
     "claude-code-review-mcp": "dist/cli.js"
   },
   "scripts": {
-    "build": "rimraf dist && tsc -p tsconfig.json && chmod +x dist/index.js",
+    "build": "rimraf dist && tsc -p tsconfig.json && chmod +x dist/index.js && chmod +x dist/cli.js",
     "start": "node dist/cli.js",
     "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
     "inspector": "npx @modelcontextprotocol/inspector dist/index.js",
     "prepublishOnly": "npm run build"
   },
@@ -42,11 +44,13 @@
     "@types/node": "^20.12.7", 
     "rimraf": "^6.0.1",
     "tsx": "^4.19.4", 
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^1.2.1"
   },
   "files": [
     "dist",
-     "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "publishConfig": {
     "access": "public"

@@ -2,7 +2,7 @@ import { CoreMessage, generateText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
-import { LLMProvider, getApiKey } from "./config.js"; // Ensure .js for ESM NodeNext
+import { LLMProvider, getApiKey, isDebugMode } from "./config.js"; // Ensure .js for ESM NodeNext
 
 // Define model types for typechecking
 type GoogleModelName = string;
@@ -18,11 +18,22 @@ type ModelName<T extends LLMProvider> = T extends "openai"
   ? GoogleModelName
   : never;
 
+/**
+ * Generates a code review using the specified LLM provider.
+ * 
+ * @param provider - LLM provider to use (google, openai, anthropic)
+ * @param modelName - Specific model name from the provider
+ * @param systemPrompt - System prompt to guide the LLM
+ * @param userMessages - User message(s) containing the code diff to review
+ * @param maxTokens - Optional maximum token limit for the response, defaults to 32000
+ * @returns Promise with the generated review text
+ */
 export async function getLLMReview<T extends LLMProvider>(
   provider: T,
   modelName: ModelName<T>,
   systemPrompt: string,
-  userMessages: CoreMessage[]
+  userMessages: CoreMessage[],
+  maxTokens: number = 32000
 ): Promise<string> {
   // Make sure we have the API key
   const apiKey = getApiKey(provider);
@@ -61,25 +72,40 @@ export async function getLLMReview<T extends LLMProvider>(
   }
 
   try {
-    console.log(
-      `[MCP Server LLM] Requesting review from ${provider} model ${modelName}.`
-    );
+    if (isDebugMode()) {
+      console.log(
+        `[MCP Server LLM] Requesting review from ${provider} model ${modelName} with max tokens ${maxTokens}.`
+      );
+    } else {
+      console.log(
+        `[MCP Server LLM] Requesting review from ${provider} model ${modelName}.`
+      );
+    }
+    
     const { text, finishReason, usage, warnings } = await generateText({
       model: llmClient,
       system: systemPrompt,
       messages: userMessages,
-      maxTokens: 60000, // Increased context for review
+      maxTokens: maxTokens, // Now configurable with default value
       temperature: 0.2, // Lower temperature for more deterministic and factual reviews
     });
 
-    if (warnings) {
+    if (warnings && warnings.length > 0) {
       warnings.forEach((warning) =>
         console.warn(`[MCP Server LLM] Warning from ${provider}:`, warning)
       );
     }
-    console.log(
-      `[MCP Server LLM] Review received from ${provider}. Finish Reason: ${finishReason}, Tokens Used: Input=${usage.promptTokens}, Output=${usage.completionTokens}`
-    );
+    
+    if (isDebugMode() && usage) {
+      console.log(
+        `[MCP Server LLM] Review received from ${provider}. Finish Reason: ${finishReason}, Tokens Used: Input=${usage.promptTokens}, Output=${usage.completionTokens}`
+      );
+    } else {
+      console.log(
+        `[MCP Server LLM] Review received from ${provider}.`
+      );
+    }
+    
     return text;
   } catch (error: any) {
     console.error(

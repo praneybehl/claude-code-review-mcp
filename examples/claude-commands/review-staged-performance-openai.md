@@ -1,4 +1,4 @@
-Perform a performance-focused code review on the currently **staged** changes using OpenAI's **o3**.
+Perform a performance-focused code review on the currently **staged** changes using OpenAI's **O3**.
 
 Use the 'perform_code_review' tool (from the 'code-reviewer' MCP server) with the following parameters:
 target: "staged"
