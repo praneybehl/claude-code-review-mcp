@@ -1,563 +1,231 @@
 # claude-code-review-mcp
 
-An MCP (Model Context Protocol) server that provides code review functionality using OpenAI, Google, and Anthropic models. It serves as a "second opinion" tool for code review that can be used with any MCP client, including Claude Code, Claude Desktop, Cursor, and Windsurf.
+**Version: 0.11.0**
+
+An MCP (Model Context Protocol) server that provides a powerful tool to perform code reviews using various Large Language Models (LLMs) via the Vercel AI SDK. This server is designed to be seamlessly integrated with AI coding assistants like Anthropic's Claude Code or other MCP-compatible clients.
+
+It analyzes `git diff` output for staged changes, differences from HEAD, or differences between branches, providing contextualized reviews based on your task description and project details.
 
 ## Features
 
-- **Multi-Provider Support**: Leverages OpenAI, Google's Gemini, and Anthropic's Claude models for code reviews
-- **Two Review Types**: Choose between structured review (with categorized feedback) or freeform narrative review
-- **Context-Aware**: Include project structure, related files, commit messages, and dependencies for more relevant reviews
-- **Intelligent Code Processing**: Automatically detects programming languages, handles large files, and formats output appropriately
-- **Robust Error Handling**: Includes retry logic for API failures and graceful error recovery
-- **MCP Compatible**: Works with any MCP client (Claude Code, Claude Desktop, Cursor, Windsurf)
-- **Easy Setup**: Simple configuration via environment variables
+-   Reviews git diffs (staged changes, current HEAD, branch differences).
+-   Integrates with Google Gemini, OpenAI, and Anthropic models through the Vercel AI SDK.
+-   Allows specification of task description, review focus, and overall project context for tailored reviews.
+-   Outputs reviews in clear, actionable markdown format.
+-   Designed to be run from the root of any Git repository you wish to analyze.
+-   Easily installable and runnable via `npx` for immediate use.
 
-## Installation
+## Prerequisites
 
-### Global Installation
+-   **Node.js**: Version 18 or higher is recommended.
+-   **Git**: Must be installed and accessible in your system's PATH. The server executes `git` commands.
+-   **API Keys for LLMs**: You need API keys for the LLM providers you intend to use. These should be set as environment variables:
+    -   `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) for Google models.
+    -   `OPENAI_API_KEY` for OpenAI models.
+    -   `ANTHROPIC_API_KEY` for Anthropic models.
+    These can be set globally in your environment or, conveniently, in a `.env` file placed in the root of the project you are currently reviewing. The server will automatically try to load it.
 
-```bash
-npm install -g claude-code-review-mcp
-```
+## Installation & Usage
 
-### Usage with npx (no installation)
+The primary way to use this server is with `npx`, which ensures you're always using the latest version without needing a global installation.
 
-```bash
-# Set environment variables separately
-export OPENAI_API_KEY=<key>
-npx -y claude-code-review-mcp
+### Recommended: Using with `npx`
 
-# Or use inline environment setting
-OPENAI_API_KEY=<key> npx -y claude-code-review-mcp
+1.  **Navigate to Your Project:**
+    Open your terminal and change to the root directory of the Git repository you want to review.
+    ```bash
+    cd /path/to/your-git-project
+    ```
 
-# Or with Google API key
-GOOGLE_API_KEY=<key> npx -y claude-code-review-mcp
+2.  **Run the MCP Server:**
+    Execute the following command:
+    ```bash
+    npx -y claude-code-review-mcp
+    ```
 
-# Or with Anthropic API key
-ANTHROPIC_API_KEY=<key> npx -y claude-code-review-mcp
+    This command will download (if not already cached) and run the `claude-code-review-mcp` server. You should see output in your terminal similar to:
+    `[MCP Server] Claude Code Reviewer MCP Server is running via stdio and connected to transport.`
+    The server is now running and waiting for an MCP client (like Claude Code) to connect.
 
-# Or use multiple API keys for more model options
-OPENAI_API_KEY=<key> GOOGLE_API_KEY=<key> ANTHROPIC_API_KEY=<key> npx -y claude-code-review-mcp
-```
+### Optional: Global Installation
 
-## Configuration
+If you prefer to install the package globally:
 
-The server requires at least one of the following API keys:
+1.  **Install Globally:**
+    ```bash
+    npm install -g claude-code-review-mcp
+    ```
 
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `GOOGLE_API_KEY`: Your Google Gemini API key
-- `ANTHROPIC_API_KEY`: Your Anthropic API key
-
-Optional configuration:
-
-- `PORT`: Server port (default: dynamic - an available port will be chosen)
-- `HOST`: Server host (default: 127.0.0.1)
-- `LOG_LEVEL`: Log level (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR; default: 1)
-
-## Available Models
-
-### OpenAI Models (requires OPENAI_API_KEY)
-
-- `gpt-4.1` - OpenAI GPT-4.1
-- `o4-mini` - OpenAI O4 Mini
-- `o3-mini` - OpenAI O3 Mini
-
-### Google Models (requires GOOGLE_API_KEY)
-
-- `gemini-2.5-pro-preview-05-06` - Google Gemini 2.5 Pro
-- `gemini-2.5-flash-preview-04-17` - Google Gemini 2.5 Flash
-
-### Anthropic Models (requires ANTHROPIC_API_KEY)
-
-- `claude-3-opus-20240229` - Anthropic Claude 3 Opus
-- `claude-3-sonnet-20240229` - Anthropic Claude 3 Sonnet
-- `claude-3-haiku-20240307` - Anthropic Claude 3 Haiku
-
-## Available Tools
-
-The MCP server provides three tools:
-
-### 1. reviewCodeStructured
-
-Provides a detailed, structured code review with the following sections:
-
-- Overall summary
-- Code quality (strengths and weaknesses)
-- Bugs (with severity and suggested fixes)
-- Improvement suggestions
-- Security issues (if any)
-
-### 2. reviewCodeFreeform
-
-Provides a narrative code review in free-form text format, suitable for general impressions and conversational feedback.
-
-### 3. listModels
-
-Lists all available models based on provided API keys, including model IDs and human-readable names.
+2.  **Run the MCP Server:**
+    Navigate to your project's root directory and run:
+    ```bash
+    claude-code-review-mcp
+    ```
 
 ## Integration with Claude Code
 
-To add this MCP server to Claude Code:
+Once the `claude-code-review-mcp` server is running (ideally via `npx` from your project's root):
 
+1.  **Add as an MCP Server in Claude Code:**
+    In a separate terminal where Claude Code is running (or will be run), configure it to use this MCP server.
+    The command to run the server (as used by Claude Code) would be `claude-code-review-mcp` if installed globally and in PATH, or the `npx ...` command if you prefer Claude Code to always fetch it.
+
+    To add it to Claude Code:
+    ```bash
+    claude mcp add code-reviewer "claude-code-review-mcp"
+    ```
+    If you want Claude Code to use `npx` (which is a good practice to ensure version consistency if you don't install globally):
+    ```bash
+    claude mcp add code-reviewer "npx -y claude-code-review-mcp"
+    ```
+    This tells Claude Code how to launch the `claude-code-review-mcp` server when the "code-reviewer" toolset is requested. This configuration can be project-specific (saved in `.claude/.mcp.json` in your project) or user-specific (global Claude Code settings).
+
+2.  **Use Smart Slash Commands in Claude Code:**
+    Create custom slash command files in your project's `.claude/commands/` directory to easily invoke the review tool. The package includes several example commands in the `examples/claude-commands/` directory that you can copy to your project.
+
+    These improved slash commands don't require you to manually specify task descriptions or project context - they leverage Claude Code's existing knowledge of your project and the current task you're working on.
+
+    Example invocation using a slash command in Claude Code:
+    ```
+    claude > /project:review-staged-claude
+    ```
+
+    No additional arguments needed! Claude will understand what you're currently working on and use that as context for the review.
+
+## Tool Provided by this MCP Server
+
+### `perform_code_review`
+
+**Description:**
+Performs a code review using a specified Large Language Model on git changes within the current Git repository. This tool must be run from the root directory of the repository being reviewed.
+
+**Input Schema (Parameters):**
+
+The tool expects parameters matching the `CodeReviewToolParamsSchema`:
+
+-   `target` (enum: `'staged'`, `'HEAD'`, `'branch_diff'`):
+    Specifies the set of changes to review.
+    -   `'staged'`: Reviews only the changes currently staged for commit.
+    -   `'HEAD'`: Reviews uncommitted changes (both staged and unstaged) against the last commit.
+    -   `'branch_diff'`: Reviews changes between a specified base branch/commit and the current HEAD. Requires `diffBase` parameter.
+-   `taskDescription` (string):
+    A clear and concise description of the task, feature, or bugfix that led to the code changes. This provides crucial context for the LLM reviewer. (e.g., "Implemented password reset functionality via email OTP.")
+-   `llmProvider` (enum: `'google'`, `'openai'`, `'anthropic'`):
+    The Large Language Model provider to use for the review.
+-   `modelName` (string):
+    The specific model name from the chosen provider. Examples:
+    -   Google: `'gemini-2.5-pro-preview-05-06'`, `'gemini-2.0-flash'`, `'gemini-1.5-pro-latest'`, `'gemini-1.5-flash'`
+        *(Ref: https://ai-sdk.dev/providers/ai-sdk-providers/google-generative-ai#model-capabilities)*
+    -   OpenAI: `'gpt-4.1'`, `'gpt-4o'`, `'gpt-4o-mini'`, `'o1-mini'`, `'o3'`
+        *(Ref: https://ai-sdk.dev/providers/ai-sdk-providers/openai#model-capabilities)*
+    -   Anthropic: `'claude-3-7-sonnet-20250219'`, `'claude-3-5-sonnet-20241022'`, `'claude-3-5-haiku-20241022'`, `'claude-3-opus-20240229'`
+        *(Ref: https://ai-sdk.dev/providers/ai-sdk-providers/anthropic#model-capabilities)*
+    Ensure the model selected is available via the Vercel AI SDK and your API key has access.
+-   `reviewFocus` (string, optional but recommended):
+    Specific areas, concerns, or aspects you want the LLM to concentrate on during the review. (e.g., "Focus on thread safety in concurrent operations.", "Pay special attention to input validation and sanitization.", "Check for adherence to our internal style guide for React components.").
+-   `projectContext` (string, optional but recommended):
+    General background information about the project, its architecture, key libraries, coding standards, or any other context that would help the LLM provide a more relevant and insightful review. (e.g., "This is a high-performance microservice using Rust and Actix. Low latency is critical.", "The project follows Clean Architecture principles. Ensure new code aligns with this.").
+-   `diffBase` (string, optional):
+    **Required if `target` is `'branch_diff'**. Specifies the base branch (e.g., `'main'`, `'develop'`) or a specific commit SHA to compare the current HEAD against.
+
+**Output:**
+
+-   If successful: A JSON object with `isError: false` and a `content` array containing a single text item. The `text` field holds the code review generated by the LLM in markdown format.
+-   If an error occurs: A JSON object with `isError: true` and a `content` array. The `text` field will contain an error message describing the issue.
+
+## Environment Variables
+
+For the LLM integration to work, the `claude-code-review-mcp` server (the process started by `npx` or `claude-code-review-mcp`) needs access to the respective API keys.
+
+Set these in your shell environment or place them in a `.env` file in the **root directory of the project you are reviewing**:
+
+-   **For Google Models:**
+    `GOOGLE_GENERATIVE_AI_API_KEY="your_google_api_key"`
+
+-   **For OpenAI Models:**
+    `OPENAI_API_KEY="your_openai_api_key"`
+
+-   **For Anthropic Models:**
+    `ANTHROPIC_API_KEY="your_anthropic_api_key"`
+
+The server will automatically load variables from a `.env` file found in the current working directory (i.e., your project's root).
+
+## Smart Slash Commands for Claude Code
+
+The package includes several improved slash commands in the `examples/claude-commands/` directory that you can copy to your project's `.claude/commands/` directory. These commands take advantage of Claude Code's understanding of your project context and current task, eliminating the need for manual input.
+
+### Available Slash Commands
+
+| Command File | Description |
+|--------------|-------------|
+| `review-staged-claude.md` | Reviews staged changes using Claude 3.5 Sonnet |
+| `review-staged-openai.md` | Reviews staged changes using OpenAI GPT-4o |
+| `review-staged-gemini.md` | Reviews staged changes using Google Gemini 2.5 Pro |
+| `review-head-claude.md` | Reviews all uncommitted changes using Claude 3.7 Sonnet |
+| `review-head-openai.md` | Reviews all uncommitted changes using OpenAI GPT-4.1 |
+| `review-head-gemini.md` | Reviews all uncommitted changes using Google Gemini 1.5 Pro |
+| `review-branch-main-claude.md` | Reviews changes from main branch using Claude 3 Opus |
+| `review-branch-develop-openai.md` | Reviews changes from develop branch using OpenAI o1-mini |
+| `review-branch-custom-gemini.md` | Reviews changes from a specified branch using Google Gemini 2.0 Flash |
+| `review-staged-security-claude.md` | Security-focused review of staged changes using Claude 3.5 Haiku |
+| `review-staged-performance-openai.md` | Performance-focused review of staged changes using OpenAI o3 |
+| `review-staged-maintainability-gemini.md` | Maintainability-focused review of staged changes using Google Gemini 1.5 Flash |
+
+To use these commands:
+
+1. Copy the desired command files from the `examples/claude-commands/` directory to your project's `.claude/commands/` directory
+2. Invoke the command in Claude Code with `/project:command-name` (e.g., `/project:review-staged-claude`)
+
+These commands automatically use Claude's knowledge of your current task and project context, eliminating the need for lengthy manual arguments.
+
+## Development (for the `claude-code-review-mcp` package itself)
+
+If you are contributing to or modifying the `claude-code-review-mcp` package:
+
+1.  **Clone the Monorepo:**
+    Ensure you have the repo cloned.
+2.  **Navigate to Package:**
+    ```bash
+    cd /path/to/claude-code-review-mcp
+    ```
+3.  **Install Dependencies:**
+    ```bash
+    pnpm install
+    ```
+4.  **Run in Development Mode:**
+    This uses `tsx` for hot-reloading TypeScript changes.
+    ```bash
+    pnpm dev
+    ```
+    The server will start and log to `stderr`.
+
+5.  **Testing with Claude Code (Local Development):**
+    You'll need to tell Claude Code where your local development server script is:
+    ```bash
+    # From any directory where you use Claude Code
+    claude mcp add local-code-reviewer "node /path/to/claude-code-review-mcp/src/index.ts" --interpreter=tsx
+    ```
+    Now, when Claude Code needs the "local-code-reviewer", it will execute your source `index.ts` using `tsx`. Remember to replace `/path/to/claude-code-review-mcp/` with the actual absolute path to your repo.
+
+## Building for Production/Publishing
+
+From the `packages/claude-code-review-mcp` directory:
 ```bash
-# Use environment variables properly (recommended approach)
-claude mcp add code-review -s user -e OPENAI_API_KEY=<key> -e GOOGLE_API_KEY=<key> -e ANTHROPIC_API_KEY=<key> -- npx -y claude-code-review-mcp
-
-# Alternative: Export the variables before adding the MCP
-export OPENAI_API_KEY=<key>
-export GOOGLE_API_KEY=<key>
-export ANTHROPIC_API_KEY=<key>
-claude mcp add code-review -s user -- npx -y claude-code-review-mcp
+pnpm build
 ```
-
-You can also create a custom slash command by creating a file at `.claude/commands/review-with.md`:
-
-```markdown
-I'll review your code using alternative LLM models. Model to use: $ARGUMENTS
-```
-
-<details>
-<summary><b>Detailed Custom Slash Commands for Claude Code</b></summary>
-
-Claude Code supports custom slash commands that you can create to easily interact with the MCP server. Create these commands in the `.claude/commands/` directory within your project to enable powerful code review workflows.
-
-### Basic Setup
-
-First, create the commands directory if it doesn't exist:
-
-```bash
-mkdir -p .claude/commands
-```
-
-### Model Listing Command
-
-Create a command to list available models:
-
-```bash
-# Create the list-review-models.md file
-cat > .claude/commands/list-review-models.md << 'EOF'
-I'll check which alternative code review models are available through our MCP server.
-
-First, I'll use the MCP server to list all available models for code review.
-After that, I'll present the models in a clear table format with:
-- Model ID (what you'll use when requesting a review)
-- Provider (OpenAI or Google)
-- Description (size and capabilities)
-- Speed (relative performance)
-
-This will help you choose the right model for your code review needs.
-EOF
-```
-
-### Basic Code Review Command
-
-Create a simple review command that accepts a model name:
-
-```bash
-# Create the review-with.md file
-cat > .claude/commands/review-with.md << 'EOF'
-I'll review the code I've just worked on using an alternative LLM model to provide a second opinion.
-
-First, I'll identify the code changes or file you want reviewed. If you don't specify a file, I'll look at recent changes.
-
-Then, I'll send this code to be reviewed by the specified model through our MCP server.
-
-Available models (run /project:list-review-models to see all options):
-- OpenAI models (if configured): "gpt-4.1", "o4-mini", "o3-mini"
-- Google models (if configured): "gemini-2.5-pro-preview-05-06", "gemini-2.5-flash-preview-04-17"
-
-Model to use (leave blank for default): $ARGUMENTS
-EOF
-```
-
-### Structured Review Command
-
-Create a command specifically for structured reviews:
-
-```bash
-# Create the structured-review.md file
-cat > .claude/commands/structured-review.md << 'EOF'
-I'll perform a structured code review using an alternative LLM model.
-
-This review will be organized into clear sections:
-1. Overall summary
-2. Code quality assessment (strengths and weaknesses)
-3. Potential bugs with severity ratings (Low/Medium/High)
-4. Specific improvement suggestions
-5. Security considerations (if applicable)
-
-If you don't specify a model, I'll use the default available model.
-
-Model to use (optional): $ARGUMENTS
-EOF
-```
-
-### Freeform Review Command
-
-Create a command for narrative-style reviews:
-
-```bash
-# Create the freeform-review.md file
-cat > .claude/commands/freeform-review.md << 'EOF'
-I'll provide a conversational, narrative-style code review using an alternative LLM model.
-
-This will be a more holistic assessment of your code with flowing paragraphs rather than structured categories. This style works well for:
-- General impressions
-- High-level feedback
-- More nuanced commentary on code style and approach
-
-If you don't specify a model, I'll use the default available model.
-
-Model to use (optional): $ARGUMENTS
-EOF
-```
-
-### Review Specific File Command
-
-Create a command to review a specific file:
-
-```bash
-# Create the review-file.md file
-cat > .claude/commands/review-file.md << 'EOF'
-I'll review a specific file using an alternative LLM model.
-
-Please provide the file path to review and optionally the model to use.
-Format: [file_path] [model_name]
-
-For example:
-- "src/utils.js gemini-2.5-pro-preview-05-06" - Reviews utils.js with Gemini Pro
-- "lib/auth.ts" - Reviews auth.ts with the default model
-
-Input: $ARGUMENTS
-EOF
-```
-
-### Focus-Specific Review Commands
-
-Create commands for specialized reviews:
-
-```bash
-# Create security review command
-cat > .claude/commands/security-review.md << 'EOF'
-I'll perform a security-focused code review using an alternative LLM model.
-
-This review will specifically examine:
-- Potential security vulnerabilities
-- Input validation issues
-- Authentication/authorization flaws
-- Data protection concerns
-- Injection vulnerabilities
-- Secure coding best practices
-
-If you don't specify a model, I'll use a model recommended for security analysis.
-
-Model to use (optional): $ARGUMENTS
-EOF
-```
-
-```bash
-# Create performance review command
-cat > .claude/commands/performance-review.md << 'EOF'
-I'll perform a performance-focused code review using an alternative LLM model.
-
-This review will specifically examine:
-- Algorithm efficiency
-- Memory usage
-- Unnecessary computations
-- Loop optimizations
-- Data structure choices
-- Caching opportunities
-- Async/parallel processing considerations
-
-If you don't specify a model, I'll use a model that's good at performance analysis.
-
-Model to use (optional): $ARGUMENTS
-EOF
-```
-
-### Comprehensive Project Review Command
-
-Create a command for reviewing code with full project context:
-
-```bash
-# Create the project-review.md file
-cat > .claude/commands/project-review.md << 'EOF'
-I'll perform a comprehensive code review with full project context using an alternative LLM model.
-
-This review will:
-1. Analyze the code structure and organization
-2. Consider related files and dependencies
-3. Evaluate consistency with project patterns
-4. Assess integration with existing components
-5. Check alignment with project architecture
-
-I'll gather project context, including directory structure and related files, to ensure a thorough, context-aware review.
-
-Format: [file_to_review] [model_name]
-Example: "src/components/Button.jsx gemini-2.5-pro-preview-05-06"
-
-Input: $ARGUMENTS
-EOF
-```
-
-### Before and After Review Command
-
-Create a command to compare code changes:
-
-```bash
-# Create the diff-review.md file
-cat > .claude/commands/diff-review.md << 'EOF'
-I'll review the changes you've made to a file using an alternative LLM model.
-
-This will:
-1. Identify what was changed between versions
-2. Evaluate if the changes address the intended purpose
-3. Check for any new issues introduced
-4. Suggest potential improvements to the changes
-
-I'll need to know which file to examine. If you've been working on a file with Claude Code, I'll automatically find the changes.
-
-Model to use (optional): $ARGUMENTS
-EOF
-```
-
-### Using Custom Slash Commands
-
-Once you've created these commands, you can use them in Claude Code by typing `/project:` followed by the command name. For example:
-
-```
-/project:list-review-models
-/project:review-with gemini-2.5-pro-preview-05-06
-/project:structured-review o4-mini
-/project:security-review
-/project:review-file src/utils.js gemini-2.5-flash-preview-04-17
-```
-
-### Tips for Custom Commands
-
-- **Command Discovery**: Type `/project:` in Claude Code to see a list of available commands
-- **Default Models**: If you don't specify a model, the command will use the default model (typically o4-mini if available)
-- **Multiple Reviews**: You can get multiple perspectives by running reviews with different models
-- **Project Context**: For the most relevant reviews, use commands that include project context
-- **Specialized Focus**: Use the focus-specific commands when you have particular concerns about security, performance, etc.
-
-### Example Workflow
-
-A typical workflow might look like:
-
-1. Work on code with Claude Code
-2. Run `/project:list-review-models` to see available options
-3. Run `/project:structured-review gemini-2.5-pro-preview-05-06` to get a structured review from Google's model
-4. Compare with Claude's suggestions
-5. Make improvements based on both perspectives
-6. Run `/project:diff-review` to review the changes
-
-These custom commands enable smooth integration between Claude Code and the claude-code-review-mcp server, providing valuable "second opinions" for your code.
-
-</details>
-
-## Example Usage
-
-### Starting the MCP Server
-
-```bash
-# Start with OpenAI API key (using exports, recommended)
-export OPENAI_API_KEY=<key>
-npx -y claude-code-review-mcp
-
-# Or with inline environment variables
-OPENAI_API_KEY=<key> npx -y claude-code-review-mcp
-
-# Start with Google Gemini API key
-export GOOGLE_API_KEY=<key>
-npx -y claude-code-review-mcp
-
-# Start with Anthropic Claude API key
-export ANTHROPIC_API_KEY=<key>
-npx -y claude-code-review-mcp
-
-# Use multiple API keys for more model options
-export OPENAI_API_KEY=<key>
-export GOOGLE_API_KEY=<key>
-export ANTHROPIC_API_KEY=<key>
-npx -y claude-code-review-mcp
-
-# Use custom port and host
-export OPENAI_API_KEY=<key>
-export PORT=8080 
-export HOST=0.0.0.0
-npx -y claude-code-review-mcp
-```
-
-### Using with MCP Clients
-
-Once the server is running, you can connect to it from any MCP client like Claude Code, Claude Desktop, Cursor, or Windsurf using the server's URL. The server will display the actual URL and port in its startup logs (using a dynamically assigned port to avoid conflicts).
-
-## Input Schema
-
-All review tools accept the following input:
-
-```typescript
-{
-  code: string;  // Required: The code to review
-  filename?: string;  // Optional: The filename with extension
-  language?: string;  // Optional: Programming language
-  model: string;  // Required: Model ID to use for review
-  projectContext?: {  // Optional: Additional context
-    projectStructure?: string;  // Directory structure
-    relatedFiles?: Array<{  // Related code files
-      name: string;  // Filename with path
-      language?: string;  // File language
-      content: string;  // File content
-    }>;
-    commitMessage?: string;  // Purpose of changes
-    dependencies?: Record<string, string>;  // Project dependencies
-  }
-}
-```
-
-## Output Schema
-
-### Structured Review Output
-
-```typescript
-{
-  review?: {  // Present on success
-    summary: string;  // Overall assessment
-    quality: {
-      strengths: string[];  // Good aspects
-      weaknesses: string[];  // Areas for improvement
-    };
-    bugs: Array<{
-      description: string;  // Issue description
-      severity: "Low" | "Medium" | "High";  // Impact level
-      suggestion: string;  // How to fix
-    }>;
-    improvements: string[];  // Enhancement suggestions
-    securityIssues?: string[];  // Security concerns if any
-  };
-  modelUsed: string;  // Human-readable model name
-  error?: string;  // Present on error
-  availableModels?: Record<string, string>;  // Present on error or listModels
-}
-```
-
-### Freeform Review Output
-
-```typescript
-{
-  reviewText?: string;  // Present on success
-  modelUsed: string;  // Human-readable model name
-  error?: string;  // Present on error
-  availableModels?: Record<string, string>;  // Present on error or listModels
-}
-```
-
-### List Models Output
-
-```typescript
-{
-  availableModels: Record<string, string>;  // Model ID to name mapping
-  modelUsed: string;  // Always "None" for this tool
-}
-```
-
-## MCP Client Integration
-
-### Claude Code
-
-1. Add the MCP server:
-
-```bash
-claude mcp add code-review -s user npx -y claude-code-review-mcp
-```
-
-2. Use in Claude Code:
-
-```
-/code-review:reviewCodeStructured --model o4-mini
-```
-
-### Claude Desktop
-
-In Claude Desktop settings, configure the MCP as follows:
-
-```json
-"claude-code-review-mcp": {
-  "command": "npx",
-  "args": ["-y", "claude-code-review-mcp"],
-  "env": {
-    "OPENAI_API_KEY": "your-openai-key",
-    "GOOGLE_API_KEY": "your-google-key",
-    "ANTHROPIC_API_KEY": "your-anthropic-key"
-  }
-}
-```
-
-### Cursor and Windsurf
-
-Follow the specific MCP configuration guidelines for your client, using the same command and environment variables.
+This compiles TypeScript to JavaScript in the `dist` directory. The `prepublishOnly` script in `package.json` ensures this command is run automatically before publishing the package to npm.
 
 ## Troubleshooting
 
-### API Key Issues
-
-- **"Model X is not available"**: Ensure you've provided the appropriate API key for the model.
-- **No API keys provided**: You must provide at least one of OPENAI_API_KEY, GOOGLE_API_KEY, or ANTHROPIC_API_KEY.
-- **Suggested model**: The server will suggest alternative models if your requested model is not available.
-
-### JSON Parsing Errors with MCP Inspector
-
-If you encounter JSON parsing errors when connecting to the MCP server through MCP Inspector (common error: "SyntaxError: Unexpected token at position 5"), use the specialized Inspector compatibility wrapper:
-
-```bash
-# Instead of standard MCP server
-npx -y claude-code-review-mcp-inspector
-```
-
-This wrapper specifically fixes JSON formatting issues that can occur in the communication between the MCP Inspector and our server.
-
-### Rate Limiting and API Errors
-
-- If you encounter rate limits or API errors, the error message will indicate the issue.
-- Consider using a different model if one provider is experiencing issues.
-
-## Security Considerations
-
-- API keys are never logged or exposed
-- Code contents are minimally logged for privacy
-- Dependencies are kept minimal to reduce security surface
-- Request handling includes input validation and sanitization
-- Error messages are designed to avoid leaking sensitive information
-
-## Compatibility
-
-- Requires Node.js 18.0.0 or later
-- Works on Linux, macOS, and Windows (via WSL if necessary)
-- Compatible with all MCP clients (Claude Code, Claude Desktop, Cursor, Windsurf)
-- Graceful handling of large code files and project contexts
-- Automatic retry mechanism for transient API failures
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Start in development mode
-npm run dev
-
-# Build for production
-npm run build
-
-# Start in production mode
-npm run start
-```
+-   **"Current directory is not a git repository..."**: Ensure you are running `npx claude-code-review-mcp` (or the global command) from the root directory of a valid Git project.
+-   **"API key for ... is not configured"**: Make sure the relevant environment variable (e.g., `OPENAI_API_KEY`) is set in the shell where you launched the MCP server OR in a `.env` file in your project's root.
+-   **"Failed to get git diff. Git error: ..."**: This indicates an issue with the `git diff` command.
+    -   Check if `git` is installed and in your PATH.
+    -   Verify that the `target` and `diffBase` (if applicable) are valid for your repository.
+    -   The error message from `git` itself should provide more clues.
+-   **LLM API Errors**: Errors from the LLM providers (e.g., rate limits, invalid model name, authentication issues) will be passed through. Check the error message for details from the specific LLM API.
+-   **Claude Code MCP Issues**: If Claude Code isn't finding or launching the server, double-check your `claude mcp add ...` command and ensure the command specified for the MCP server is correct and executable. Use `claude mcp list` to verify.
 
 ## License
 
-MIT
-
-## Contributors
-
-- Praney Behl (@praneybehl)
+MIT License - Copyright (c) Praney Behl

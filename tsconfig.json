@@ -1,14 +1,17 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "module": "NodeNext", // Changed for better CJS/ESM interop with Node.js ecosystem
+    "moduleResolution": "NodeNext", // Changed
     "esModuleInterop": true,
-    "outDir": "dist",
     "strict": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "sourceMap": true,
+    "resolveJsonModule": true // If you import JSON files directly
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "test/**/*"]
-} 
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}
