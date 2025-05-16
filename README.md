@@ -37,6 +37,14 @@ It analyzes `git diff` output for staged changes, differences from HEAD, or diff
 
 The primary way to use this server is with `npx`, which ensures you're always using the latest version without needing a global installation.
 
+### Installing via Smithery
+
+To install code-review-mcp for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@praneybehl/code-review-mcp):
+
+```bash
+npx -y @smithery/cli install @praneybehl/code-review-mcp --client claude
+```
+
 ### Recommended: Using with `npx`
 
 1.  **Navigate to Your Project:**
