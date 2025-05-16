@@ -14,7 +14,22 @@ dotenv.config();
 // Define valid log levels and parse the environment variable
 export const LogLevelEnum = z.enum(["debug", "info", "warn", "error"]);
 export type LogLevel = z.infer<typeof LogLevelEnum>;
-export const LOG_LEVEL: LogLevel = LogLevelEnum.parse(process.env.LOG_LEVEL || 'info');
+
+// Convert numeric log levels to string equivalents
+function normalizeLogLevel(level: string | undefined): string {
+  if (!level) return 'info';
+  
+  // Map numeric levels to string values
+  switch (level) {
+    case '0': return 'debug';
+    case '1': return 'info';
+    case '2': return 'warn';
+    case '3': return 'error';
+    default: return level; // Pass through string values for validation
+  }
+}
+
+export const LOG_LEVEL: LogLevel = LogLevelEnum.parse(normalizeLogLevel(process.env.LOG_LEVEL));
 
 export const LLMProviderEnum = z.enum(["google", "openai", "anthropic"]);
 export type LLMProvider = z.infer<typeof LLMProviderEnum>;

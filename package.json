@@ -6,12 +6,12 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "bin": {
-    "code-review-mcp": "dist/cli.js"
+    "code-review-mcp": "dist/index.js"
   },
   "scripts": {
-    "build": "rimraf dist && tsc -p tsconfig.json && chmod +x dist/cli.js",
-    "start": "node dist/cli.js",
-    "dev": "tsx src/cli.ts",
+    "build": "rimraf dist && tsc -p tsconfig.json && chmod +x dist/index.js",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "inspector": "npx @modelcontextprotocol/inspector dist/index.js",
