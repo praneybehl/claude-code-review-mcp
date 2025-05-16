@@ -2,9 +2,9 @@
 
 **Version: 1.0.0**
 
-An MCP (Model Context Protocol) server that provides a powerful tool to perform code reviews using various Large Language Models (LLMs) via the Vercel AI SDK. This server is designed to be seamlessly integrated with AI coding assistants like Anthropic's Claude Code, Cursor, Windsurf, or other MCP-compatible clients.
+An MCP (Model Context Protocol) server that provides a powerful tool to perform code reviews using various Large Language Models (LLMs). This server is designed to be seamlessly integrated with AI coding assistants like Anthropic's Claude Code, Cursor, Windsurf, or other MCP-compatible clients.
 
-> **Note:** This tool was initially created for Claude Code but has since been expanded to support other AI IDEs. See the integration guides for [Claude Code](#integration-with-claude-code), [Cursor](#cursor-integration), and [Windsurf](#windsurf-integration).
+> **Note:** This tool was initially created for Claude Code but has since been expanded to support other AI IDEs and Claude Desktop. See the integration guides for [Claude Code](#integration-with-claude-code), [Cursor](#cursor-integration), and [Windsurf](#windsurf-integration).
 
 It analyzes `git diff` output for staged changes, differences from HEAD, or differences between branches, providing contextualized reviews based on your task description and project details.
 
@@ -37,14 +37,6 @@ It analyzes `git diff` output for staged changes, differences from HEAD, or diff
 
 The primary way to use this server is with `npx`, which ensures you're always using the latest version without needing a global installation.
 
-### Installing via Smithery
-
-To install code-review-mcp for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@praneybehl/code-review-mcp):
-
-```bash
-npx -y @smithery/cli install @praneybehl/code-review-mcp --client claude
-```
-
 ### Recommended: Using with `npx`
 
 1.  **Navigate to Your Project:**
@@ -63,20 +55,16 @@ npx -y @smithery/cli install @praneybehl/code-review-mcp --client claude
     `[MCP Server] Code Reviewer MCP Server is running via stdio and connected to transport.`
     The server is now running and waiting for an MCP client (like Claude Code, Cursor, or Windsurf) to connect.
 
-### Optional: Global Installation
 
-If you prefer to install the package globally:
 
-1.  **Install Globally:**
-    ```bash
-    npm install -g @vibesnipe/code-review-mcp
-    ```
+### Installing via Smithery
 
-2.  **Run the MCP Server:**
-    Navigate to your project's root directory and run:
-    ```bash
-    code-review-mcp
-    ```
+To install code-review-mcp for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@praneybehl/code-review-mcp):
+
+```bash
+npx -y @smithery/cli install @praneybehl/code-review-mcp --client claude
+```
+
 
 ## Integration with Claude Code
 
@@ -88,13 +76,13 @@ Once the `claude-code-review-mcp` server is running (ideally via `npx` from your
 
     To add it to Claude Code:
     ```bash
-    claude mcp add code-reviewer "code-review-mcp"
+    claude mcp add code-reviewer -s <user|local> -e GOOGLE_API_KEY="key" -- code-review-mcp 
     ```
     If you want Claude Code to use `npx` (which is a good practice to ensure version consistency if you don't install globally):
     ```bash
-    claude mcp add code-reviewer "npx -y @vibesnipe/code-review-mcp"
+    claude mcp add code-reviewer -s <user|local> -e GOOGLE_API_KEY="key" -- npx -y @vibesnipe/code-review-mcp
     ```
-    This tells Claude Code how to launch the `claude-code-review-mcp` server when the "code-reviewer" toolset is requested. This configuration can be project-specific (saved in `.claude/.mcp.json` in your project) or user-specific (global Claude Code settings).
+    This tells Claude Code how to launch the MCP server when the "code-reviewer" toolset is requested. This configuration can be project-specific (saved in `.claude/.mcp.json` in your project) or user-specific (global Claude Code settings).
 
 2.  **Use Smart Slash Commands in Claude Code:**
     Create custom slash command files in your project's `.claude/commands/` directory to easily invoke the review tool. The package includes several example commands in the `examples/claude-commands/` directory that you can copy to your project.
@@ -120,12 +108,7 @@ Once the `claude-code-review-mcp` server is running (ideally via `npx` from your
 
 Cursor is a popular AI-powered IDE based on VS Code that supports MCP servers. Here's how to integrate the code review MCP server with Cursor:
 
-1. **Install the @vibesnipe/code-review-mcp server globally** (recommended for IDE integration):
-   ```bash
-   npm install -g @vibesnipe/code-review-mcp
-   ```
-
-2. **Configure Cursor's Rules for Code Review**:
+1. **Configure Cursor's Rules for Code Review**:
    
    Create or open the `.cursor/rules/project.mdc` file in your project and add the following section:
 
@@ -139,13 +122,22 @@ Cursor is a popular AI-powered IDE based on VS Code that supports MCP servers. H
    /review-security: Use the perform_code_review tool from the code-reviewer MCP server to review staged changes. Use anthropic provider with claude-3-5-sonnet-20241022 model. Base the task description on our current conversation context and specifically focus on security vulnerabilities, input validation, and secure coding practices.
    ```
 
-3. **Add the MCP Server in Cursor**:
+2. **Add the MCP Server in Cursor**:
    
    - Open Cursor settings
    - Navigate to the MCP Servers section
-   - Add a new MCP server with:
-     - Name: `code-reviewer`
-     - Command: `code-review-mcp`
+   - Add a new MCP server with the following JSON configuration:
+   ```json
+   "code-reviewer": {
+     "command": "npx",
+     "args": ["-y", "@vibesnipe/code-review-mcp"],
+     "env": {
+       "GOOGLE_API_KEY": "your-google-api-key",
+       "OPENAI_API_KEY": "your-openai-api-key",
+       "ANTHROPIC_API_KEY": "your-anthropic-api-key"
+     }
+   }
+   ```
 
 4. **Using the Commands**:
    
@@ -159,19 +151,23 @@ Cursor is a popular AI-powered IDE based on VS Code that supports MCP servers. H
 
 Windsurf (formerly Codeium) is another advanced AI IDE that supports custom workflows via slash commands. Here's how to integrate with Windsurf:
 
-1. **Install the @vibesnipe/code-review-mcp server globally**:
-   ```bash
-   npm install -g @vibesnipe/code-review-mcp
-   ```
-
-2. **Configure the MCP Server in Windsurf**:
+1. **Configure the MCP Server in Windsurf**:
    
    - Open Windsurf
    - Click on the Customizations icon in the top right of Cascade
    - Navigate to the MCP Servers panel
-   - Add a new MCP server with:
-     - Name: `code-reviewer`
-     - Command: `code-review-mcp`
+   - Add a new MCP server with the following JSON configuration:
+   ```json
+   "code-reviewer": {
+     "command": "npx",
+     "args": ["-y", "@vibesnipe/code-review-mcp"],
+     "env": {
+       "GOOGLE_API_KEY": "your-google-api-key",
+       "OPENAI_API_KEY": "your-openai-api-key",
+       "ANTHROPIC_API_KEY": "your-anthropic-api-key"
+     }
+   }
+   ```
 
 3. **Create Workflows for Code Review**:
    
@@ -269,7 +265,7 @@ Set these in your shell environment or place them in a `.env` file in the **root
 -   **For Anthropic Models:**
     `ANTHROPIC_API_KEY="your_anthropic_api_key"`
 
-The server will automatically load variables from a `.env` file found in the current working directory (i.e., your project's root).
+The server will automatically load variables from a `.env` file found in the current working directory (i.e., your project's root) or you can configure them directly in the MCP server configuration as shown in the examples above.
 
 ## Smart Slash Commands for Claude Code
 
@@ -359,7 +355,7 @@ This compiles TypeScript to JavaScript in the `dist` directory. The `prepublishO
     -   The error message from `git` itself should provide more clues.
 -   **LLM API Errors**: Errors from the LLM providers (e.g., rate limits, invalid model name, authentication issues) will be passed through. Check the error message for details from the specific LLM API.
 -   **Claude Code MCP Issues**: If Claude Code isn't finding or launching the server, double-check your `claude mcp add ...` command and ensure the command specified for the MCP server is correct and executable. Use `claude mcp list` to verify.
--   **Cursor MCP Server Issues**: If Cursor doesn't recognize the MCP server, make sure it's properly added in the settings. Check that the `code-review-mcp` command is accessible from your PATH (if using global installation) or adjust the command accordingly.
+-   **Cursor MCP Server Issues**: If Cursor doesn't recognize the MCP server, make sure it's properly added in the settings with the correct configuration.
 -   **Windsurf Workflow Errors**: If Windsurf workflows are not executing correctly, check that:
     -   The workflow files are properly formatted and located in the `.windsurf/workflows/` directory
     -   The MCP server is correctly configured in Windsurf's MCP Server panel
