@@ -1,12 +1,12 @@
 {
-  "name": "claude-code-review-mcp",
-  "version": "0.11.0",
+  "name": "@vibesnipe/code-review-mcp",
+  "version": "1.0.0",
   "description": "MCP server for performing code reviews using external LLMs via Vercel AI SDK.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "bin": {
-    "claude-code-review-mcp": "dist/cli.js"
+    "code-review-mcp": "dist/cli.js"
   },
   "scripts": {
     "build": "rimraf dist && tsc -p tsconfig.json && chmod +x dist/cli.js",
@@ -20,11 +20,11 @@
   "keywords": [
     "mcp",
     "claude code",
-    "claude desktop",
-    "claude",
-    "mcp",
-    "model-context-protocol",
+    "cursor",
+    "windsurf",
+    "ai code review",
     "code-review",
+    "model-context-protocol",
     "review code"
   ],
 
@@ -50,7 +50,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "examples"
   ],
   "publishConfig": {
     "access": "public"

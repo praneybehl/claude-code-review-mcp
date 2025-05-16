@@ -1,0 +1,22 @@
+# Cursor Code Review Rules
+
+Use these rules to add code review capabilities to Cursor via slash commands.
+
+## Slash Commands
+
+/review-staged: Use the perform_code_review tool from the code-reviewer MCP server to review staged changes. Use anthropic provider with claude-3-7-sonnet-20250219 model. Base the task description on our current conversation context and focus on code quality and best practices.
+
+/review-head: Use the perform_code_review tool from the code-reviewer MCP server to review all uncommitted changes (HEAD). Use openai provider with o3 model. Base the task description on our current conversation context and focus on code quality and best practices.
+
+/review-security: Use the perform_code_review tool from the code-reviewer MCP server to review staged changes. Use anthropic provider with claude-3-5-sonnet-20241022 model. Base the task description on our current conversation context and specifically focus on security vulnerabilities, input validation, and secure coding practices.
+
+/review-branch <branch>: Use the perform_code_review tool from the code-reviewer MCP server to review changes between the specified branch and HEAD. Use google provider with gemini-2.5-pro-preview-05-06 model. Set diffBase to <branch>. Base the task description on our current conversation context and focus on code quality and best practices.
+
+/review-performance: Use the perform_code_review tool from the code-reviewer MCP server to review staged changes. Use openai provider with o3 model. Base the task description on our current conversation context and specifically focus on performance optimizations, computational efficiency, and algorithm improvements.
+
+## Notes
+
+1. Model names: Replace with the latest available models from each provider as they become available.
+2. Task description: Cursor will extract context from your current conversation, but for best results, discuss what you're working on before running a review command.
+3. Branch parameter: While the MCP server sanitizes inputs, avoid using branch names with special characters.
+

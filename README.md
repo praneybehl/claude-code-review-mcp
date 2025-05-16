@@ -1,8 +1,10 @@
-# claude-code-review-mcp
+# @vibesnipe/code-review-mcp
 
-**Version: 0.11.0**
+**Version: 1.0.0**
 
-An MCP (Model Context Protocol) server that provides a powerful tool to perform code reviews using various Large Language Models (LLMs) via the Vercel AI SDK. This server is designed to be seamlessly integrated with AI coding assistants like Anthropic's Claude Code or other MCP-compatible clients.
+An MCP (Model Context Protocol) server that provides a powerful tool to perform code reviews using various Large Language Models (LLMs) via the Vercel AI SDK. This server is designed to be seamlessly integrated with AI coding assistants like Anthropic's Claude Code, Cursor, Windsurf, or other MCP-compatible clients.
+
+> **Note:** This tool was initially created for Claude Code but has since been expanded to support other AI IDEs. See the integration guides for [Claude Code](#integration-with-claude-code), [Cursor](#cursor-integration), and [Windsurf](#windsurf-integration).
 
 It analyzes `git diff` output for staged changes, differences from HEAD, or differences between branches, providing contextualized reviews based on your task description and project details.
 
@@ -46,12 +48,12 @@ The primary way to use this server is with `npx`, which ensures you're always us
 2.  **Run the MCP Server:**
     Execute the following command:
     ```bash
-    npx -y claude-code-review-mcp
+    npx -y @vibesnipe/code-review-mcp
     ```
 
-    This command will download (if not already cached) and run the `claude-code-review-mcp` server. You should see output in your terminal similar to:
-    `[MCP Server] Claude Code Reviewer MCP Server is running via stdio and connected to transport.`
-    The server is now running and waiting for an MCP client (like Claude Code) to connect.
+    This command will download (if not already cached) and run the `@vibesnipe/code-review-mcp` server. You should see output in your terminal similar to:
+    `[MCP Server] Code Reviewer MCP Server is running via stdio and connected to transport.`
+    The server is now running and waiting for an MCP client (like Claude Code, Cursor, or Windsurf) to connect.
 
 ### Optional: Global Installation
 
@@ -59,13 +61,13 @@ If you prefer to install the package globally:
 
 1.  **Install Globally:**
     ```bash
-    npm install -g claude-code-review-mcp
+    npm install -g @vibesnipe/code-review-mcp
     ```
 
 2.  **Run the MCP Server:**
     Navigate to your project's root directory and run:
     ```bash
-    claude-code-review-mcp
+    code-review-mcp
     ```
 
 ## Integration with Claude Code
@@ -74,15 +76,15 @@ Once the `claude-code-review-mcp` server is running (ideally via `npx` from your
 
 1.  **Add as an MCP Server in Claude Code:**
     In a separate terminal where Claude Code is running (or will be run), configure it to use this MCP server.
-    The command to run the server (as used by Claude Code) would be `claude-code-review-mcp` if installed globally and in PATH, or the `npx ...` command if you prefer Claude Code to always fetch it.
+    The command to run the server (as used by Claude Code) would be `code-review-mcp` if installed globally and in PATH, or the `npx ...` command if you prefer Claude Code to always fetch it.
 
     To add it to Claude Code:
     ```bash
-    claude mcp add code-reviewer "claude-code-review-mcp"
+    claude mcp add code-reviewer "code-review-mcp"
     ```
     If you want Claude Code to use `npx` (which is a good practice to ensure version consistency if you don't install globally):
     ```bash
-    claude mcp add code-reviewer "npx -y claude-code-review-mcp"
+    claude mcp add code-reviewer "npx -y @vibesnipe/code-review-mcp"
     ```
     This tells Claude Code how to launch the `claude-code-review-mcp` server when the "code-reviewer" toolset is requested. This configuration can be project-specific (saved in `.claude/.mcp.json` in your project) or user-specific (global Claude Code settings).
 
@@ -103,6 +105,100 @@ Once the `claude-code-review-mcp` server is running (ideally via `npx` from your
     claude > /project:review-branch-custom-gemini main
     ```
     This will pass "main" as the $ARGUMENTS_BASE_BRANCH parameter.
+
+## Integration with Modern AI IDEs
+
+### Cursor Integration
+
+Cursor is a popular AI-powered IDE based on VS Code that supports MCP servers. Here's how to integrate the code review MCP server with Cursor:
+
+1. **Install the @vibesnipe/code-review-mcp server globally** (recommended for IDE integration):
+   ```bash
+   npm install -g @vibesnipe/code-review-mcp
+   ```
+
+2. **Configure Cursor's Rules for Code Review**:
+   
+   Create or open the `.cursor/rules/project.mdc` file in your project and add the following section:
+
+   ```markdown
+   ## Slash Commands
+
+   /review-staged: Use the perform_code_review tool from the code-reviewer MCP server to review staged changes. Use anthropic provider with claude-3-7-sonnet-20250219 model. Base the task description on our current conversation context and focus on code quality and best practices.
+
+   /review-head: Use the perform_code_review tool from the code-reviewer MCP server to review all uncommitted changes (HEAD). Use openai provider with o3 model. Base the task description on our current conversation context and focus on code quality and best practices.
+
+   /review-security: Use the perform_code_review tool from the code-reviewer MCP server to review staged changes. Use anthropic provider with claude-3-5-sonnet-20241022 model. Base the task description on our current conversation context and specifically focus on security vulnerabilities, input validation, and secure coding practices.
+   ```
+
+3. **Add the MCP Server in Cursor**:
+   
+   - Open Cursor settings
+   - Navigate to the MCP Servers section
+   - Add a new MCP server with:
+     - Name: `code-reviewer`
+     - Command: `code-review-mcp`
+
+4. **Using the Commands**:
+   
+   In Cursor's AI chat interface, you can now simply type:
+   ```
+   /review-staged
+   ```
+   And Cursor will use the claude-code-review-mcp server to perform a code review of your staged changes.
+
+### Windsurf Integration
+
+Windsurf (formerly Codeium) is another advanced AI IDE that supports custom workflows via slash commands. Here's how to integrate with Windsurf:
+
+1. **Install the @vibesnipe/code-review-mcp server globally**:
+   ```bash
+   npm install -g @vibesnipe/code-review-mcp
+   ```
+
+2. **Configure the MCP Server in Windsurf**:
+   
+   - Open Windsurf
+   - Click on the Customizations icon in the top right of Cascade
+   - Navigate to the MCP Servers panel
+   - Add a new MCP server with:
+     - Name: `code-reviewer`
+     - Command: `code-review-mcp`
+
+3. **Create Workflows for Code Review**:
+   
+   Windsurf supports workflows that can be invoked via slash commands. Create a file in `.windsurf/workflows/review-staged.md`:
+
+   ```markdown
+   # Review Staged Changes
+   
+   Perform a code review on the currently staged changes in the repository.
+   
+   ## Step 1
+   
+   Use the perform_code_review tool from the code-reviewer MCP server with the following parameters:
+   ```
+   {
+     "target": "staged",
+     "llmProvider": "anthropic",
+     "modelName": "claude-3-7-sonnet-20250219",
+     "taskDescription": "The task I am currently working on in this codebase",
+     "reviewFocus": "General code quality, security best practices, and performance considerations",
+     "projectContext": "This project is being developed in Windsurf. Please review the code carefully for any issues."
+   }
+   ```
+   ```
+
+   Similarly, create workflows for other review types as needed.
+
+4. **Using the Workflows**:
+   
+   In Windsurf's Cascade interface, you can invoke these workflows with:
+   ```
+   /review-staged
+   ```
+
+   Windsurf will then execute the workflow, which will use the claude-code-review-mcp server to perform the code review.
 
 ## Tool Provided by this MCP Server
 
@@ -133,6 +229,8 @@ The tool expects parameters matching the `CodeReviewToolParamsSchema`:
     -   Anthropic: `'claude-3-7-sonnet-20250219'`, `'claude-3-5-sonnet-20241022'`
         *(Ref: https://ai-sdk.dev/providers/ai-sdk-providers/anthropic#model-capabilities)*
     Ensure the model selected is available via the Vercel AI SDK and your API key has access.
+    
+    **Note:** Model names often change as providers release new versions. Always check the latest documentation from your provider and update the model names accordingly.
 -   `reviewFocus` (string, optional but recommended):
     Specific areas, concerns, or aspects you want the LLM to concentrate on during the review. (e.g., "Focus on thread safety in concurrent operations.", "Pay special attention to input validation and sanitization.", "Check for adherence to our internal style guide for React components.").
 -   `projectContext` (string, optional but recommended):
@@ -206,9 +304,9 @@ These commands automatically use Claude's knowledge of your current task and pro
   
 - **Branch Name Sanitization**: To prevent command injection, branch names are sanitized before being used in Git commands. However, it's still good practice to avoid using unusual characters in branch names.
 
-## Development (for the `claude-code-review-mcp` package itself)
+## Development (for the `@vibesnipe/code-review-mcp` package itself)
 
-If you are contributing to or modifying the `claude-code-review-mcp` package:
+If you are contributing to or modifying the `@vibesnipe/code-review-mcp` package:
 
 1.  **Clone the Monorepo:**
     Ensure you have the repo cloned.
@@ -237,7 +335,7 @@ If you are contributing to or modifying the `claude-code-review-mcp` package:
 
 ## Building for Production/Publishing
 
-From the `packages/claude-code-review-mcp` directory:
+From the package directory:
 ```bash
 pnpm build
 ```
@@ -245,7 +343,7 @@ This compiles TypeScript to JavaScript in the `dist` directory. The `prepublishO
 
 ## Troubleshooting
 
--   **"Current directory is not a git repository..."**: Ensure you are running `npx claude-code-review-mcp` (or the global command) from the root directory of a valid Git project.
+-   **"Current directory is not a git repository..."**: Ensure you are running `npx @vibesnipe/code-review-mcp` (or the global command) from the root directory of a valid Git project.
 -   **"API key for ... is not configured"**: Make sure the relevant environment variable (e.g., `OPENAI_API_KEY`) is set in the shell where you launched the MCP server OR in a `.env` file in your project's root.
 -   **"Failed to get git diff. Git error: ..."**: This indicates an issue with the `git diff` command.
     -   Check if `git` is installed and in your PATH.
@@ -253,6 +351,11 @@ This compiles TypeScript to JavaScript in the `dist` directory. The `prepublishO
     -   The error message from `git` itself should provide more clues.
 -   **LLM API Errors**: Errors from the LLM providers (e.g., rate limits, invalid model name, authentication issues) will be passed through. Check the error message for details from the specific LLM API.
 -   **Claude Code MCP Issues**: If Claude Code isn't finding or launching the server, double-check your `claude mcp add ...` command and ensure the command specified for the MCP server is correct and executable. Use `claude mcp list` to verify.
+-   **Cursor MCP Server Issues**: If Cursor doesn't recognize the MCP server, make sure it's properly added in the settings. Check that the `code-review-mcp` command is accessible from your PATH (if using global installation) or adjust the command accordingly.
+-   **Windsurf Workflow Errors**: If Windsurf workflows are not executing correctly, check that:
+    -   The workflow files are properly formatted and located in the `.windsurf/workflows/` directory
+    -   The MCP server is correctly configured in Windsurf's MCP Server panel
+    -   You have the necessary API keys set up in your environment
 
 ## License
 
