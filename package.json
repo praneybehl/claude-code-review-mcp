@@ -9,7 +9,7 @@
     "claude-code-review-mcp": "dist/cli.js"
   },
   "scripts": {
-    "build": "rimraf dist && tsc -p tsconfig.json && chmod +x dist/index.js && chmod +x dist/cli.js",
+    "build": "rimraf dist && tsc -p tsconfig.json && chmod +x dist/cli.js",
     "start": "node dist/cli.js",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",

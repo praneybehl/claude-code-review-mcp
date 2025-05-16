@@ -21,6 +21,9 @@ type ModelName<T extends LLMProvider> = T extends "openai"
 /**
  * Generates a code review using the specified LLM provider.
  * 
+ * NOTE: The default maximum token limit was reduced from 60000 to 32000 tokens in v0.11.0
+ * to better balance cost and quality. This can be configured using the new maxTokens parameter.
+ * 
  * @param provider - LLM provider to use (google, openai, anthropic)
  * @param modelName - Specific model name from the provider
  * @param systemPrompt - System prompt to guide the LLM

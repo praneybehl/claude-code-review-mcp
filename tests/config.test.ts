@@ -34,5 +34,27 @@ describe('config module', () => {
       const key = getApiKey('anthropic');
       expect(key).toBe('mock-anthropic-api-key');
     });
+    
+    it('should use GEMINI_API_KEY as fallback when GOOGLE_API_KEY is not available', () => {
+      // Reset the Google API key and set Gemini key instead
+      vi.stubEnv('GOOGLE_API_KEY', '');
+      vi.stubEnv('GEMINI_API_KEY', 'mock-gemini-fallback-key');
+      
+      const key = getApiKey('google');
+      expect(key).toBe('mock-gemini-fallback-key');
+    });
+    
+    it('should return undefined when no API key is available for a provider', () => {
+      // Clear all API keys
+      vi.stubEnv('GOOGLE_API_KEY', '');
+      vi.stubEnv('GEMINI_API_KEY', '');
+      vi.stubEnv('OPENAI_API_KEY', '');
+      
+      const googleKey = getApiKey('google');
+      const openaiKey = getApiKey('openai');
+      
+      expect(googleKey).toBeUndefined();
+      expect(openaiKey).toBeUndefined();
+    });
   });
 });

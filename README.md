@@ -139,6 +139,9 @@ The tool expects parameters matching the `CodeReviewToolParamsSchema`:
     General background information about the project, its architecture, key libraries, coding standards, or any other context that would help the LLM provide a more relevant and insightful review. (e.g., "This is a high-performance microservice using Rust and Actix. Low latency is critical.", "The project follows Clean Architecture principles. Ensure new code aligns with this.").
 -   `diffBase` (string, optional):
     **Required if `target` is `'branch_diff'**. Specifies the base branch (e.g., `'main'`, `'develop'`) or a specific commit SHA to compare the current HEAD against.
+-   `maxTokens` (number, optional):
+    Maximum number of tokens to use for the LLM response. Defaults to 32000 if not specified. Use this parameter to optimize for faster, less expensive responses (lower value) or more comprehensive reviews (higher value).
+    **Note**: In v0.11.0, the default was reduced from 60000 to 32000 tokens to better balance cost and quality.
 
 **Output:**
 

@@ -11,8 +11,10 @@ import dotenv from "dotenv";
 dotenv.config({ path: process.cwd() + "/.env" });
 dotenv.config();
 
-// Log level for debugging output
-export const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+// Define valid log levels and parse the environment variable
+export const LogLevelEnum = z.enum(["debug", "info", "warn", "error"]);
+export type LogLevel = z.infer<typeof LogLevelEnum>;
+export const LOG_LEVEL: LogLevel = LogLevelEnum.parse(process.env.LOG_LEVEL || 'info');
 
 export const LLMProviderEnum = z.enum(["google", "openai", "anthropic"]);
 export type LLMProvider = z.infer<typeof LLMProviderEnum>;
@@ -76,13 +78,18 @@ export type CodeReviewToolParams = z.infer<typeof CodeReviewToolParamsSchema>;
  * @returns The API key or undefined if not found
  */
 export function getApiKey(provider: LLMProvider): string | undefined {
+  let key: string | undefined;
+  
   switch (provider) {
     case "google":
-      return process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+      key = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+      break;
     case "openai":
-      return process.env.OPENAI_API_KEY;
+      key = process.env.OPENAI_API_KEY;
+      break;
     case "anthropic":
-      return process.env.ANTHROPIC_API_KEY;
+      key = process.env.ANTHROPIC_API_KEY;
+      break;
     default:
       // Should not happen due to Zod validation
       console.warn(
@@ -90,6 +97,9 @@ export function getApiKey(provider: LLMProvider): string | undefined {
       );
       return undefined;
   }
+  
+  // If the key is an empty string or undefined, return undefined
+  return key && key.trim() !== "" ? key : undefined;
 }
 
 /**
@@ -97,5 +107,5 @@ export function getApiKey(provider: LLMProvider): string | undefined {
  * Set the LOG_LEVEL environment variable to 'debug' for verbose output.
  */
 export function isDebugMode(): boolean {
-  return LOG_LEVEL.toLowerCase() === 'debug';
+  return LOG_LEVEL === 'debug';
 }

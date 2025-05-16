@@ -1,6 +1,17 @@
 import { execSync, ExecSyncOptionsWithStringEncoding } from "child_process";
 import { ReviewTarget, isDebugMode } from "./config.js"; // Ensure .js for ESM NodeNext
 
+/**
+ * Gets the git diff for the specified target.
+ * 
+ * @param target - The git target to review ('staged', 'HEAD', or 'branch_diff')
+ * @param baseBranch - For 'branch_diff' target, the base branch/commit to compare against
+ * @returns The git diff as a string or a message if no changes are found
+ * @throws Error if not in a git repository, or if git encounters any errors
+ * 
+ * Note: For branch_diff, this function assumes the remote is named 'origin'.
+ * If your repository uses a different remote name, this operation may fail.
+ */
 export function getGitDiff(target: ReviewTarget, baseBranch?: string): string {
   const execOptions: ExecSyncOptionsWithStringEncoding = {
     encoding: "utf8",
@@ -39,17 +50,19 @@ export function getGitDiff(target: ReviewTarget, baseBranch?: string): string {
             "Base branch/commit is required for 'branch_diff' target and cannot be empty."
           );
         }
-        // Sanitize baseBranch somewhat to prevent trivial command injection if it were ever less controlled.
-        // For now, it's from Claude Code arguments, so less risky but good practice.
+        // Sanitize baseBranch to prevent command injection
+        // Only allow alphanumeric characters, underscore, dash, dot, and forward slash
         const sanitizedBaseBranch = baseBranch.replace(
           /[^a-zA-Z0-9_.\-/]/g,
           ""
         );
         if (sanitizedBaseBranch !== baseBranch) {
-          throw new Error("Invalid characters in base branch name.");
+          throw new Error(
+            `Invalid characters in base branch name. Only alphanumeric characters, underscore, dash, dot, and forward slash are allowed. Received: "${baseBranch}"`
+          );
         }
         // Fetch the base branch to ensure the diff is against the latest version of it
-        // Use --no-tags to avoid fetching unnecessary data
+        // Note: This assumes the remote is named 'origin'
         const fetchCommand = `git fetch origin ${sanitizedBaseBranch}:${sanitizedBaseBranch} --no-tags --quiet`;
         try {
           execSync(fetchCommand, execOptions);
@@ -71,10 +84,13 @@ export function getGitDiff(target: ReviewTarget, baseBranch?: string): string {
       console.log(`[MCP Server Git] Executing: ${command}`);
     }
     
-    // Execute the command and ensure we have a string result
+    // Execute the command (execOptions has encoding:'utf8' so the result should already be a string)
     const diffOutput = execSync(command, execOptions);
-    const diffString = diffOutput.toString();
-
+    
+    // Ensure we always have a string to work with
+    // This is for type safety and to handle any unexpected Buffer return types
+    const diffString = Buffer.isBuffer(diffOutput) ? diffOutput.toString('utf8') : String(diffOutput);
+    
     if (!diffString.trim()) {
       return "No changes found for the specified target.";
     }
